@@ -1,7 +1,7 @@
-# gleam_handlers
+# gleam_web
 
-[![Package Version](https://img.shields.io/hexpm/v/gleam_handlers)](https://hex.pm/packages/gleam_handlers)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/gleam_handlers/)
+[![Package Version](https://img.shields.io/hexpm/v/gleam_web)](https://hex.pm/packages/gleam_web)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/gleam_web/)
 
 A Gleam project
 
@@ -18,7 +18,7 @@ gleam shell # Run an Erlang shell
 If available on Hex this package can be added to your Gleam project:
 
 ```sh
-gleam add gleam_handlers
+gleam add gleam_web
 ```
 
-and its documentation can be found at <https://hexdocs.pm/gleam_handlers>.
+and its documentation can be found at <https://hexdocs.pm/gleam_web>.
