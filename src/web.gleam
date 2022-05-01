@@ -43,17 +43,17 @@ pub fn any(
   match(route, "*", handler)
 }
 
-pub fn serve(handler: Handler(req, res, ctx)) {
-  None
+pub fn serve(context: ctx) {
+  fn(handler: Handler(req, res, ctx)) { None }
 }
 
-pub type Middleware(req, res, ctx) =
-  fn(Request(req), ctx, Handler(req, res, ctx)) -> Option(Response(res))
+pub type Middleware(req, res, ctx_in, ctx_out) =
+  fn(Request(req), ctx_in, Handler(req, res, ctx_out)) -> Option(Response(res))
 
 pub fn middleware(
-  fun: Middleware(req, res, ctx),
-) -> fn(Handler(req, res, ctx)) -> Handler(req, res, ctx) {
-  fn(handler: Handler(req, res, ctx)) {
-    fn(req: Request(req), ctx: ctx) { fun(req, ctx, handler) }
+  middleware_handler: Middleware(req, res, ctx_in, ctx_out),
+) -> fn(Handler(req, res, ctx_out)) -> Handler(req, res, ctx_in) {
+  fn(handler: Handler(req, res, ctx_out)) {
+    fn(req: Request(req), ctx: ctx_in) { middleware_handler(req, ctx, handler) }
   }
 }

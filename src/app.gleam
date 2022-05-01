@@ -4,8 +4,13 @@ import gleam/http/request.{Request}
 import gleam/option.{None, Option, Some}
 import web.{Handler}
 
-pub type Context =
-  String
+type Context {
+  Context(db: String)
+}
+
+type ContextAuthenticated {
+  ContextAuthenticated(db: String, user: String)
+}
 
 fn middleware_public_cors(
   req: Request(req),
@@ -19,16 +24,32 @@ fn middleware_public_cors(
   response
 }
 
-fn middleware_track(req, ctx, handler) {
-  // Track access
+fn middleware_track(req: Request(req), ctx: Context, handler) {
+  // Track access to the app
   handler(req, ctx)
 }
 
-fn middleware_authenticate(req, ctx, handler) {
-  // Do some authentication
-  // Pass the new context
-  // TODO
-  handler(req, ctx)
+fn authenticate(req: Request(req), ctx: Context) {
+  // Get cookie from request
+  // Access the DB using the url in context
+  // TODO, set session
+  Ok("sam@sample.com")
+}
+
+fn middleware_authenticate(
+  req: Request(req),
+  ctx: Context,
+  handler,
+) -> Option(Response(String)) {
+  case authenticate(req, ctx) {
+    Ok(user) -> {
+      let context_authenticated = ContextAuthenticated(db: ctx.db, user: user)
+      handler(req, context_authenticated)
+    }
+    Error(_) ->
+      //   Return unauthorised
+      Some(response.new(401))
+  }
 }
 
 fn middleware_private_cors(req, ctx, handler) {
@@ -37,11 +58,11 @@ fn middleware_private_cors(req, ctx, handler) {
 
 // End points
 // Params???
-fn home(req: Request(req), ctx: Context) -> Response(String) {
+fn home(req: Request(req), ctx: ContextAuthenticated) -> Response(String) {
   response.new(200)
 }
 
-fn users(req: Request(req), ctx: Context) -> Response(String) {
+fn users(req: Request(req), ctx: ContextAuthenticated) -> Response(String) {
   response.new(200)
 }
 
@@ -50,11 +71,13 @@ fn version(req: Request(req), ctx: Context) -> Response(String) {
 }
 
 pub fn main() {
-  // Initial context???
+  let initial_context = Context("db_url")
+
   let public_api =
     web.one_of([web.get("/version", version)])
     |> web.middleware(middleware_public_cors)
 
+  // TODO can we reverse the middleware, so it natural to write?
   let app_api =
     web.one_of([web.get("/", home), web.get("/users", users)])
     // Add CORS
@@ -65,5 +88,5 @@ pub fn main() {
   web.one_of([web.scope("/", public_api), web.scope("/app", app_api)])
   // Add middleware to track accesss
   |> web.middleware(middleware_track)
-  |> web.serve
+  |> web.serve(initial_context)
 }
