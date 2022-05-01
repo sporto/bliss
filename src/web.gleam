@@ -9,7 +9,7 @@ pub type Handler(req, res, ctx) =
 pub type EndPointHandler(req, res, ctx) =
   fn(Request(req), ctx) -> Response(res)
 
-pub fn one_of(handlers: List(Handler(req, res, ctx))) -> Handler(req, res, ctx) {
+pub fn route(handlers: List(Handler(req, res, ctx))) -> Handler(req, res, ctx) {
   // Call each handler, return if successful
   fn(req, cxt) { None }
 }
