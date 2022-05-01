@@ -3,6 +3,10 @@ import gleam/http/request.{Request}
 import gleam/option.{None, Option, Some}
 import gleam/http
 
+// pub type Response{
+//   ResponseString(),
+//   ResponseJSON(response.Response),
+// }
 // A handler is a function that takes a request, context and returns a response
 pub type Handler(req, res, ctx) =
   fn(Request(req), ctx) -> Option(Response(res))
@@ -42,6 +46,13 @@ pub fn post(
   handler: EndPointHandler(req, res, ctx),
 ) -> Handler(req, res, ctx) {
   match(route, http.Post, handler)
+}
+
+pub fn delete(
+  route,
+  handler: EndPointHandler(req, res, ctx),
+) -> Handler(req, res, ctx) {
+  match(route, http.Delete, handler)
 }
 
 pub fn any(

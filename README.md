@@ -3,15 +3,14 @@
 [![Package Version](https://img.shields.io/hexpm/v/gleam_web)](https://hex.pm/packages/gleam_web)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/gleam_web/)
 
-A Gleam project
+An experiment on making a micro web framework for Gleam
 
-## Quick start
+## TODO
 
-```sh
-gleam run   # Run the project
-gleam test  # Run the tests
-gleam shell # Run an Erlang shell
-```
+- Handle Routes and extract parameters
+- Add response types for JSON, String, etc,
+- Reverse the middleware application, so the ones at the top run first
+- Add session middleware
 
 ## Installation
 

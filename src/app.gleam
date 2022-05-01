@@ -4,6 +4,7 @@ import gleam/http/request.{Request}
 import gleam/option.{None, Option, Some}
 import web.{Handler}
 import middleware
+import gleam/bit_builder.{BitBuilder}
 
 type Context {
   Context(db: String)
@@ -21,7 +22,7 @@ fn middleware_track(req: Request(req), ctx: Context, handler) {
 fn authenticate(req: Request(req), ctx: Context) {
   // Get cookie from request
   // Access the DB using the url in context
-  // TODO, set session
+  // TODO, set session cookie
   Ok("sam@sample.com")
 }
 
@@ -29,42 +30,85 @@ fn middleware_authenticate(
   req: Request(req),
   ctx: Context,
   handler,
-) -> Option(Response(String)) {
+) -> Option(Response(BitBuilder)) {
   case authenticate(req, ctx) {
     Ok(user) -> {
       let context_authenticated = ContextAuthenticated(db: ctx.db, user: user)
       handler(req, context_authenticated)
     }
-    Error(_) ->
+    Error(_) -> {
       //   Return unauthorised
-      Some(response.new(401))
+      let resp =
+        response.new(401)
+        |> response.set_body(bit_builder.from_string(""))
+      Some(resp)
+    }
   }
 }
 
 // End points
 // Params???
-fn home(req: Request(req), ctx: ContextAuthenticated) -> Response(String) {
+fn home(req: Request(req), ctx: ContextAuthenticated) -> Response(BitBuilder) {
+  let body = bit_builder.from_string("")
   response.new(200)
+  |> response.set_body(body)
 }
 
-fn users(req: Request(req), ctx: ContextAuthenticated) -> Response(String) {
+fn language_list(
+  req: Request(req),
+  ctx: ContextAuthenticated,
+) -> Response(BitBuilder) {
+  let body = bit_builder.from_string("")
   response.new(200)
+  |> response.set_body(body)
 }
 
-fn version(req: Request(req), ctx: Context) -> Response(String) {
+fn language_show(
+  req: Request(req),
+  ctx: ContextAuthenticated,
+) -> Response(BitBuilder) {
+  let body = bit_builder.from_string("")
   response.new(200)
+  |> response.set_body(body)
+}
+
+fn language_delete(
+  req: Request(req),
+  ctx: ContextAuthenticated,
+) -> Response(BitBuilder) {
+  let body = bit_builder.from_string("")
+  response.new(200)
+  |> response.set_body(body)
+}
+
+fn version(req: Request(req), ctx: Context) -> Response(BitBuilder) {
+  let body = bit_builder.from_string("1.0.0")
+  response.new(200)
+  |> response.set_body(body)
+}
+
+fn public_data(req: Request(req), ctx: Context) -> Response(BitBuilder) {
+  let body = bit_builder.from_string("{\"message\":\"Hello World\"}")
+  response.new(200)
+  |> response.set_body(body)
+  |> response.prepend_header("content-type", "application/json")
 }
 
 pub fn main() {
   let initial_context = Context("db_url")
 
   let public_api =
-    web.route([web.get("/version", version)])
+    web.route([web.get("/version", version), web.get("/data", public_data)])
     |> web.middleware(middleware.cors("*"))
 
-  // TODO can we reverse the middleware, so it natural to write?
+  // TODO can we reverse the middleware, so it is more natural to write?
   let app_api =
-    web.route([web.get("/", home), web.get("/users", users)])
+    web.route([
+      web.get("/", home),
+      web.get("/languages", language_list),
+      web.get("/language/:id", language_show),
+      web.delete("/language/:id", language_delete),
+    ])
     // Add CORS
     |> web.middleware(middleware.cors("https://app.com"))
     // Must be authenticated
