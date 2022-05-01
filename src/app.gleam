@@ -11,7 +11,11 @@ type Context {
 }
 
 type ContextAuthenticated {
-  ContextAuthenticated(db: String, user: String)
+  ContextAuthenticated(db: String, user: User)
+}
+
+type User {
+  User(email: String, role: String)
 }
 
 fn middleware_track(req: Request(req), ctx: Context, handler) {
@@ -19,11 +23,12 @@ fn middleware_track(req: Request(req), ctx: Context, handler) {
   handler(req, ctx)
 }
 
-fn authenticate(req: Request(req), ctx: Context) {
+fn authenticate(req: Request(req), ctx: Context) -> Result(User, String) {
   // Get cookie from request
   // Access the DB using the url in context
   // TODO, set session cookie
-  Ok("sam@sample.com")
+  let user = User(email: "sam@sample.com", role: "user")
+  Ok(user)
 }
 
 fn middleware_authenticate(
@@ -38,6 +43,20 @@ fn middleware_authenticate(
     }
     Error(_) -> {
       //   Return unauthorised
+      let resp =
+        response.new(401)
+        |> response.set_body(bit_builder.from_string(""))
+      Some(resp)
+    }
+  }
+}
+
+fn middleware_must_be_admin(req, ctx: ContextAuthenticated, handler) {
+  // Check that the user is admin
+  let is_admin = ctx.user.role == "admin"
+  case is_admin {
+    True -> handler(req, ctx)
+    False -> {
       let resp =
         response.new(401)
         |> response.set_body(bit_builder.from_string(""))
@@ -107,7 +126,9 @@ pub fn main() {
       web.get("/", home),
       web.get("/languages", language_list),
       web.get("/language/:id", language_show),
-      web.delete("/language/:id", language_delete),
+      // Some routes can only be used by an admin
+      web.route([web.delete("/language/:id", language_delete)])
+      |> web.middleware(middleware_must_be_admin),
     ])
     // Add CORS
     |> web.middleware(middleware.cors("https://app.com"))
