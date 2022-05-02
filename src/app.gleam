@@ -120,14 +120,13 @@ pub fn main() {
     web.route([web.get("/version", version), web.get("/data", public_data)])
     |> web.middleware(middleware.cors("*"))
 
-  // TODO can we reverse the middleware, so it is more natural to write?
   let app_api =
     web.route([
       web.get("/", home),
       web.get("/languages", language_list),
-      web.get("/language/:id", language_show),
+      web.get("/languages/:id", language_show),
       // Some routes can only be used by an admin
-      web.route([web.delete("/language/:id", language_delete)])
+      web.route([web.delete("/languages/:id", language_delete)])
       |> web.middleware(middleware_must_be_admin),
     ])
     // Add CORS

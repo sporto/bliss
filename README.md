@@ -9,7 +9,6 @@ An experiment on making a micro web framework for Gleam
 
 - Handle Routes and extract parameters
 - Add response types for JSON, String, etc,
-- Reverse the middleware application, so the ones at the top run first
 - Add session middleware
 
 ## Installation
