@@ -7,14 +7,8 @@ import gleam/function.{compose}
 //   gleeunit.main()
 // }
 pub fn parse_test() {
-  let parser =
-    p.start
-    |> compose(p.seg("users"))
-    |> compose(p.int())
-    |> compose(p.end)
+  let expected = #(1)
 
-  // p.parse("/users/1", parser)
-  let expected = #(#(#(Nil, Nil), Nil), 1)
-  parser("/users/1")
+  p.expect1("/users/1", [p.int])
   |> should.equal(Ok(expected))
 }

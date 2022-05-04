@@ -1,64 +1,91 @@
 import gleam/option.{None, Option, Some}
 import gleam/int
 import gleam/string
+import gleam/list
+import gleam/result
 
-type Pair(a, b) =
-  #(Result(#(a, b), String), List(String))
+type SegmentParser {
+  SegmentParserInt
+  SegmentParserStatic(String)
+  SegmentParserString
+}
 
-pub fn check_segment(wanted: String) -> fn(String) -> Option(Nil) {
-  fn(input: String) {
-    case input == wanted {
-      True -> Some(Nil)
-      False -> None
-    }
+pub const int = SegmentParserInt
+
+type ParseResult {
+  ParseResultInt(Int)
+  ParseResultString(String)
+  ParseResultDiscard
+}
+
+type Parameter {
+  ParameterInt(Int)
+  ParameterString(String)
+}
+
+pub fn check_static(
+  wanted: String,
+  given: String,
+) -> Result(ParseResult, String) {
+  case given == wanted {
+    True -> Ok(ParseResultDiscard)
+    False -> Error("given")
   }
 }
 
-pub fn check_int() -> fn(String) -> Option(Int) {
-  fn(input: String) {
-    case int.parse(input) {
-      Ok(num) -> Some(num)
-      Error(_) -> None
-    }
+fn check_int(input: String) -> Result(ParseResult, String) {
+  int.parse(input)
+  |> result.replace_error(input)
+  |> result.map(ParseResultInt)
+}
+
+fn parse_pair(tuple: #(String, SegmentParser)) -> Result(ParseResult, String) {
+  let #(segment, segment_parser) = tuple
+  case segment_parser {
+    SegmentParserInt -> check_int(segment)
+    SegmentParserStatic(wanted) -> check_static(wanted, segment)
+    SegmentParserString -> Ok(ParseResultString(segment))
   }
 }
 
-pub fn seg(wanted: String) {
-  check_segment(wanted)
-  |> step
-}
-
-pub fn int() {
-  check_int()
-  |> step
-}
-
-fn step(check: fn(String) -> Option(parsed)) {
-  fn(acc_and_input: Pair(previous, parsed)) {
-    let #(acc, segments) = acc_and_input
-    case acc {
-      Ok(previous_tuple) ->
-        case segments {
-          [] -> #(Error("No more segments to parse"), [])
-          [next_segment, ..rest] ->
-            case check(next_segment) {
-              Some(res) -> #(Ok(#(previous_tuple, res)), rest)
-              None -> #(Error(next_segment), rest)
-            }
-        }
-
-      Error(err) -> #(Error(err), segments)
-    }
+fn result_to_parameter(result: ParseResult) -> Result(Parameter, Nil) {
+  case result {
+    ParseResultDiscard -> Error(Nil)
+    ParseResultString(str) -> Ok(ParameterString(str))
+    ParseResultInt(int) -> Ok(ParameterInt(int))
   }
 }
 
-pub fn start(input: String) -> Pair(Nil, Nil) {
+fn parse(
+  input: String,
+  parsers: List(SegmentParser),
+) -> Result(List(Parameter), String) {
   let segments = string.split(input, "/")
-  let acc = Ok(#(Nil, Nil))
-  #(acc, segments)
+  // The should be a parser for each segment
+  try pairs =
+    list.strict_zip(segments, parsers)
+    |> result.replace_error("Segments length don't match parsers length")
+
+  try results =
+    pairs
+    |> list.map(parse_pair)
+    |> result.all
+
+  let params =
+    results
+    |> list.filter_map(result_to_parameter)
+
+  Ok(params)
 }
 
-pub fn end(acc_and_input) {
-  let #(res, _) = acc_and_input
-  res
+pub fn expect1(input, parsers) -> Result(#(a), String) {
+  try results = parse(input, parsers)
+  case results {
+    [one] ->
+      case one {
+        ParameterInt(int) -> #(int)
+        ParameterString(str) -> #(str)
+      }
+    _ -> Error("Didn't return one")
+  }
 }
