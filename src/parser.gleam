@@ -3,89 +3,124 @@ import gleam/int
 import gleam/string
 import gleam/list
 import gleam/result
+import gleam/pair
+import gleam/function
 
-type SegmentParser {
-  SegmentParserInt
-  SegmentParserStatic(String)
-  SegmentParserString
+pub opaque type Parser(a) {
+  Parser(fn(List(String)) -> Result(#(a, List(String)), String))
 }
 
-pub const int = SegmentParserInt
-
-type ParseResult {
-  ParseResultInt(Int)
-  ParseResultString(String)
-  ParseResultDiscard
-}
-
-type Parameter {
-  ParameterInt(Int)
-  ParameterString(String)
-}
-
-pub fn check_static(
-  wanted: String,
-  given: String,
-) -> Result(ParseResult, String) {
-  case given == wanted {
-    True -> Ok(ParseResultDiscard)
-    False -> Error("given")
+fn then(parser: Parser(a), f: fn(a) -> Parser(b)) -> Parser(b) {
+  let p = fn(input) {
+    use_parser(parser, input)
+    |> result.then(fn(result) {
+      let #(value, rest) = result
+      use_parser(f(value), rest)
+    })
   }
+  Parser(p)
 }
 
-fn check_int(input: String) -> Result(ParseResult, String) {
-  int.parse(input)
-  |> result.replace_error(input)
-  |> result.map(ParseResultInt)
+fn map(parser: Parser(a), f: fn(a) -> b) -> Parser(b) {
+  then(
+    parser,
+    fn(a) {
+      f(a)
+      |> succeed
+    },
+  )
 }
 
-fn parse_pair(tuple: #(String, SegmentParser)) -> Result(ParseResult, String) {
-  let #(segment, segment_parser) = tuple
-  case segment_parser {
-    SegmentParserInt -> check_int(segment)
-    SegmentParserStatic(wanted) -> check_static(wanted, segment)
-    SegmentParserString -> Ok(ParseResultString(segment))
-  }
+fn map2(parser_a: Parser(a), parser_b: Parser(b), f: fn(a, b) -> c) -> Parser(c) {
+  then(parser_a, fn(a) { map(parser_b, fn(b) { f(a, b) }) })
 }
 
-fn result_to_parameter(result: ParseResult) -> Result(Parameter, Nil) {
-  case result {
-    ParseResultDiscard -> Error(Nil)
-    ParseResultString(str) -> Ok(ParameterString(str))
-    ParseResultInt(int) -> Ok(ParameterInt(int))
-  }
-}
-
-fn parse(
-  input: String,
-  parsers: List(SegmentParser),
-) -> Result(List(Parameter), String) {
+pub fn parse(input: String, parser: Parser(a)) -> Result(a, String) {
   let segments = string.split(input, "/")
-  // The should be a parser for each segment
-  try pairs =
-    list.strict_zip(segments, parsers)
-    |> result.replace_error("Segments length don't match parsers length")
 
-  try results =
-    pairs
-    |> list.map(parse_pair)
-    |> result.all
-
-  let params =
-    results
-    |> list.filter_map(result_to_parameter)
-
-  Ok(params)
+  use_parser(parser, segments)
+  |> result.map(pair.first)
 }
 
-pub fn expect1(input, parsers) -> Result(#(a), String) {
-  try results = parse(input, parsers)
-  case results {
-    [one] ->
-      case one {
-        ParameterInt(int) -> #(int)
-        ParameterString(str) -> #(str)
-      }
-    _ -> Error("Didn't return one")
+fn use_parser(
+  parser: Parser(a),
+  segments: List(String),
+) -> Result(#(a, List(String)), String) {
+  let Parser(p) = parser
+  p(segments)
+}
+
+fn tuple1(a) {
+  #(a)
+}
+
+fn tuple2(a) {
+  fn(b) { #(a, b) }
+}
+
+fn succeed(constructor: cons) -> Parser(cons) {
+  let p = fn(input: List(String)) { Ok(#(constructor, input)) }
+  Parser(p)
+}
+
+pub fn succeed1() -> Parser(fn(a) -> #(a)) {
+  succeed(tuple1)
+}
+
+pub fn succeed2() -> Parser(fn(a) -> fn(b) -> #(a, b)) {
+  succeed(tuple2)
+}
+
+pub fn segment_parser(wanted: String) -> Parser(String) {
+  let p = fn(input: List(String)) {
+    case input {
+      [] -> Error("Not enough segments")
+      [first, ..rest] ->
+        case first == wanted {
+          True -> Ok(#(first, rest))
+          False -> Error(first)
+        }
+    }
   }
+  Parser(p)
+}
+
+pub fn string_parser() -> Parser(String) {
+  let p = fn(input: List(String)) {
+    case input {
+      [] -> Error("Not enough segments")
+      [first, ..rest] -> Ok(#(first, rest))
+    }
+  }
+  Parser(p)
+}
+
+pub fn int_parser() -> Parser(Int) {
+  let p = fn(input: List(String)) {
+    case input {
+      [] -> Error("Not enough segments")
+      [first, ..rest] ->
+        case int.parse(first) {
+          Ok(n) -> Ok(#(n, rest))
+          Error(_) -> Error("Not a number")
+        }
+    }
+  }
+  Parser(p)
+}
+
+pub fn drop(keeper: Parser(a), ignorer: Parser(b)) -> Parser(a) {
+  map2(keeper, ignorer, fn(a, _) { a })
+}
+
+pub fn keep(mapper: Parser(fn(a) -> b), parser: Parser(a)) -> Parser(b) {
+  map2(mapper, parser, fn(f, a) { f(a) })
+}
+
+pub fn segment(previous, wanted: String) {
+  drop(previous, segment_parser(wanted))
+}
+
+pub fn int(previous) {
+  keep(previous, int_parser())
 }

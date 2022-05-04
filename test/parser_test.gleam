@@ -1,7 +1,6 @@
-import gleeunit
+// import gleeunit
 import gleeunit/should
-import parser as p
-import gleam/function.{compose}
+import parser as pp
 
 // pub fn main() {
 //   gleeunit.main()
@@ -9,6 +8,11 @@ import gleam/function.{compose}
 pub fn parse_test() {
   let expected = #(1)
 
-  p.expect1("/users/1", [p.int])
+  let parser =
+    pp.succeed1()
+    |> pp.segment("users")
+    |> pp.int
+
+  pp.parse("/users/1", parser)
   |> should.equal(Ok(expected))
 }
