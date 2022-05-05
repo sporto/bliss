@@ -1,10 +1,7 @@
-import gleam/option.{None, Option, Some}
 import gleam/int
 import gleam/string
-import gleam/list
 import gleam/result
-import gleam/pair
-import gleam/function
+import gleam/list
 
 type Segments =
   List(String)
@@ -15,6 +12,7 @@ pub opaque type Parser(a) {
 
 pub type Error {
   NotEnoughSegments
+  TooManySegments
   Expected(String)
 }
 
@@ -43,21 +41,20 @@ fn map2(parser_a: Parser(a), parser_b: Parser(b), f: fn(a, b) -> c) -> Parser(c)
   then(parser_a, fn(a) { map(parser_b, fn(b) { f(a, b) }) })
 }
 
-fn drop_leading(path: String) {
-  case string.starts_with(path, "/") {
-    True -> string.drop_left(from: path, up_to: 1)
-    False -> path
-  }
-}
-
 pub fn parse(input: String, parser: Parser(a)) -> Result(a, Error) {
   let segments =
     input
-    |> drop_leading
     |> string.split("/")
+    |> list.filter(fn(seg) { !string.is_empty(seg) })
 
-  use_parser(parser, segments)
-  |> result.map(pair.first)
+  try res = use_parser(parser, segments)
+
+  let #(parsed, remainder) = res
+
+  case remainder {
+    [] -> Ok(parsed)
+    _ -> Error(TooManySegments)
+  }
 }
 
 fn use_parser(

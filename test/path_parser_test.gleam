@@ -2,6 +2,29 @@
 import gleeunit/should
 import path_parser as p
 
+pub fn top_test() {
+  let parser = p.get0()
+
+  p.parse("/", parser)
+  |> should.equal(Ok(#()))
+}
+
+pub fn more_segments_test() {
+  let parser = p.get0()
+
+  p.parse("/users", parser)
+  |> should.equal(Error(p.TooManySegments))
+}
+
+pub fn one_segment_test() {
+  let parser =
+    p.get0()
+    |> p.seg("users")
+
+  p.parse("/users", parser)
+  |> should.equal(Ok(#()))
+}
+
 pub fn just_segments_test() {
   let parser =
     p.get0()
