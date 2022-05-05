@@ -95,7 +95,7 @@ pub fn string_parser() -> Parser(String) {
   Parser(p)
 }
 
-pub fn int_parser() -> Parser(Int) {
+fn int_parser() -> Parser(Int) {
   let p = fn(input: List(String)) {
     case input {
       [] -> Error("Not enough segments")
@@ -109,7 +109,7 @@ pub fn int_parser() -> Parser(Int) {
   Parser(p)
 }
 
-pub fn drop(keeper: Parser(a), ignorer: Parser(b)) -> Parser(a) {
+pub fn discard(keeper: Parser(a), ignorer: Parser(b)) -> Parser(a) {
   map2(keeper, ignorer, fn(a, _) { a })
 }
 
@@ -118,7 +118,7 @@ pub fn keep(mapper: Parser(fn(a) -> b), parser: Parser(a)) -> Parser(b) {
 }
 
 pub fn segment(previous, wanted: String) {
-  drop(previous, segment_parser(wanted))
+  discard(previous, segment_parser(wanted))
 }
 
 pub fn int(previous) {
