@@ -2,7 +2,7 @@
 import gleam/http/response.{Response}
 import gleam/http/request.{Request}
 import gleam/option.{None, Option, Some}
-import web.{Handler}
+import web_server.{Handler} as web
 import middleware
 import gleam/bit_builder.{BitBuilder}
 import path_parser as pp
@@ -43,7 +43,7 @@ fn middleware_authenticate(
       handler(req, context_authenticated)
     }
     Error(_) -> {
-      //   Return unauthorised
+      // Return unauthorised
       let resp =
         response.new(401)
         |> response.set_body(bit_builder.from_string(""))
@@ -119,6 +119,7 @@ fn public_data(req: Request(req), ctx: Context, _) -> Response(BitBuilder) {
 pub fn main() {
   let initial_context = Context("db_url")
 
+  // Define application paths
   let path_version =
     pp.get0()
     |> pp.seg("version")
@@ -126,10 +127,6 @@ pub fn main() {
   let path_data =
     pp.get0()
     |> pp.seg("data")
-
-  let public_api =
-    web.route([web.get(path_version, version), web.get(path_data, public_data)])
-    |> web.middleware(middleware.cors("*"))
 
   let path_top = pp.get0()
 
@@ -146,6 +143,10 @@ pub fn main() {
     pp.get0()
     |> pp.seg("app")
 
+  let public_api =
+    web.route([web.get(path_version, version), web.get(path_data, public_data)])
+    |> web.middleware(middleware.cors("*"))
+
   let app_api =
     web.route([
       web.get(path_top, home),
@@ -155,13 +156,19 @@ pub fn main() {
       web.route([web.delete(path_language, language_delete)])
       |> web.middleware(middleware_must_be_admin),
     ])
-    // Add CORS
+    // Add middlewares
+    // The middlewares at the bottom of the pipeline are executed first
+    // Middleware wrap the request, they can modify the request in the way in
+    // and the response in the way out
+    //
+    // Handle CORS
     |> web.middleware(middleware.cors("https://app.com"))
-    // Must be authenticated
+    // Must be authenticated in order to access any app endpoint
     |> web.middleware(middleware_authenticate)
 
   web.route([web.scope(path_top, public_api), web.scope(path_app, app_api)])
   // Add middleware to track accesss
   |> web.middleware(middleware_track)
-  |> web.serve(initial_context)
+  // Start the server
+  |> web.serve(context: initial_context, on_port: 3000)
 }
