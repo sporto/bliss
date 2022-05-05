@@ -5,6 +5,7 @@ import gleam/option.{None, Option, Some}
 import web.{Handler}
 import middleware
 import gleam/bit_builder.{BitBuilder}
+import path_parser as pp
 
 type Context {
   Context(db: String)
@@ -66,8 +67,7 @@ fn middleware_must_be_admin(req, ctx: ContextAuthenticated, handler) {
 }
 
 // End points
-// Params???
-fn home(req: Request(req), ctx: ContextAuthenticated) -> Response(BitBuilder) {
+fn home(req: Request(req), ctx: ContextAuthenticated, _) -> Response(BitBuilder) {
   let body = bit_builder.from_string("")
   response.new(200)
   |> response.set_body(body)
@@ -76,6 +76,7 @@ fn home(req: Request(req), ctx: ContextAuthenticated) -> Response(BitBuilder) {
 fn language_list(
   req: Request(req),
   ctx: ContextAuthenticated,
+  _,
 ) -> Response(BitBuilder) {
   let body = bit_builder.from_string("")
   response.new(200)
@@ -85,6 +86,7 @@ fn language_list(
 fn language_show(
   req: Request(req),
   ctx: ContextAuthenticated,
+  params,
 ) -> Response(BitBuilder) {
   let body = bit_builder.from_string("")
   response.new(200)
@@ -94,19 +96,20 @@ fn language_show(
 fn language_delete(
   req: Request(req),
   ctx: ContextAuthenticated,
+  params,
 ) -> Response(BitBuilder) {
   let body = bit_builder.from_string("")
   response.new(200)
   |> response.set_body(body)
 }
 
-fn version(req: Request(req), ctx: Context) -> Response(BitBuilder) {
+fn version(req: Request(req), ctx: Context, _) -> Response(BitBuilder) {
   let body = bit_builder.from_string("1.0.0")
   response.new(200)
   |> response.set_body(body)
 }
 
-fn public_data(req: Request(req), ctx: Context) -> Response(BitBuilder) {
+fn public_data(req: Request(req), ctx: Context, _) -> Response(BitBuilder) {
   let body = bit_builder.from_string("{\"message\":\"Hello World\"}")
   response.new(200)
   |> response.set_body(body)
@@ -116,17 +119,40 @@ fn public_data(req: Request(req), ctx: Context) -> Response(BitBuilder) {
 pub fn main() {
   let initial_context = Context("db_url")
 
+  let path_version =
+    pp.get0()
+    |> pp.seg("version")
+
+  let path_data =
+    pp.get0()
+    |> pp.seg("data")
+
   let public_api =
-    web.route([web.get("/version", version), web.get("/data", public_data)])
+    web.route([web.get(path_version, version), web.get(path_data, public_data)])
     |> web.middleware(middleware.cors("*"))
+
+  let path_top = pp.get0()
+
+  let path_languages =
+    pp.get0()
+    |> pp.seg("languages")
+
+  let path_language =
+    pp.get1()
+    |> pp.seg("languages")
+    |> pp.int
+
+  let path_app =
+    pp.get0()
+    |> pp.seg("app")
 
   let app_api =
     web.route([
-      web.get("/", home),
-      web.get("/languages", language_list),
-      web.get("/languages/:id", language_show),
+      web.get(path_top, home),
+      web.get(path_languages, language_list),
+      web.get(path_language, language_show),
       // Some routes can only be used by an admin
-      web.route([web.delete("/languages/:id", language_delete)])
+      web.route([web.delete(path_language, language_delete)])
       |> web.middleware(middleware_must_be_admin),
     ])
     // Add CORS
@@ -134,7 +160,7 @@ pub fn main() {
     // Must be authenticated
     |> web.middleware(middleware_authenticate)
 
-  web.route([web.scope("/", public_api), web.scope("/app", app_api)])
+  web.route([web.scope(path_top, public_api), web.scope(path_app, app_api)])
   // Add middleware to track accesss
   |> web.middleware(middleware_track)
   |> web.serve(initial_context)

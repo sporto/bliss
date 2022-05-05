@@ -2,6 +2,7 @@ import gleam/http/response.{Response}
 import gleam/http/request.{Request}
 import gleam/option.{None, Option, Some}
 import gleam/http
+import path_parser as pp
 
 // pub type Response{
 //   ResponseString(),
@@ -11,8 +12,8 @@ import gleam/http
 pub type Handler(req, res, ctx) =
   fn(Request(req), ctx) -> Option(Response(res))
 
-pub type EndPointHandler(req, res, ctx) =
-  fn(Request(req), ctx) -> Response(res)
+pub type EndPointHandler(req, res, ctx, params) =
+  fn(Request(req), ctx, params) -> Response(res)
 
 pub fn route(handlers: List(Handler(req, res, ctx))) -> Handler(req, res, ctx) {
   // Call each handler, return if successful
@@ -20,44 +21,44 @@ pub fn route(handlers: List(Handler(req, res, ctx))) -> Handler(req, res, ctx) {
 }
 
 pub fn scope(
-  route: String,
+  route: pp.Parser(params),
   handlers: Handler(req, res, ctx),
 ) -> Handler(req, res, ctx) {
   fn(req, ctx) { None }
 }
 
 pub fn match(
-  route: String,
+  route: pp.Parser(params),
   method: http.Method,
-  handler: EndPointHandler(req, res, ctx),
+  handler: EndPointHandler(req, res, ctx, params),
 ) -> Handler(req, res, ctx) {
   fn(req, ctx) { None }
 }
 
 pub fn get(
-  route,
-  handler: EndPointHandler(req, res, ctx),
+  route: pp.Parser(params),
+  handler: EndPointHandler(req, res, ctx, params),
 ) -> Handler(req, res, ctx) {
   match(route, http.Get, handler)
 }
 
 pub fn post(
-  route,
-  handler: EndPointHandler(req, res, ctx),
+  route: pp.Parser(params),
+  handler: EndPointHandler(req, res, ctx, params),
 ) -> Handler(req, res, ctx) {
   match(route, http.Post, handler)
 }
 
 pub fn delete(
-  route,
-  handler: EndPointHandler(req, res, ctx),
+  route: pp.Parser(params),
+  handler: EndPointHandler(req, res, ctx, params),
 ) -> Handler(req, res, ctx) {
   match(route, http.Delete, handler)
 }
 
 pub fn any(
-  route: String,
-  handler: EndPointHandler(req, res, ctx),
+  route: pp.Parser(params),
+  handler: EndPointHandler(req, res, ctx, params),
 ) -> Handler(req, res, ctx) {
   match(route, http.Other("*"), handler)
 }
