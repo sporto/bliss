@@ -6,6 +6,7 @@ import web_server.{Handler} as web
 import middleware
 import gleam/bit_builder.{BitBuilder}
 import path_parser as pp
+import gleam/http/elli
 
 type Context {
   Context(db: String)
@@ -116,7 +117,7 @@ fn public_data(req: Request(req), ctx: Context, _) -> Response(BitBuilder) {
   |> response.prepend_header("content-type", "application/json")
 }
 
-pub fn main() {
+pub fn app() {
   let initial_context = Context("db_url")
 
   // Define application paths
@@ -170,5 +171,9 @@ pub fn main() {
   // Add middleware to track accesss
   |> web.middleware(middleware_track)
   // Start the server
-  |> web.serve(context: initial_context, on_port: 3000)
+  |> web.service(initial_context)
+}
+
+pub fn main() {
+  elli.become(app(), on_port: 3000)
 }

@@ -3,7 +3,6 @@ import gleam/http/request.{Request}
 import gleam/option.{None, Option, Some}
 import gleam/http
 import path_parser as pp
-import gleam/http/elli
 import gleam/bit_builder.{BitBuilder}
 
 // pub type Response{
@@ -65,12 +64,11 @@ pub fn any(
   match(route, http.Other("*"), handler)
 }
 
-pub fn serve(
+pub fn service(
   handler: Handler(BitString, BitBuilder, context),
   context context: context,
-  on_port on_port: Int,
 ) {
-  let service = fn(request: Request(BitString)) {
+  fn(request: Request(BitString)) {
     case handler(request, context) {
       Some(resp) -> resp
       None ->
@@ -78,7 +76,6 @@ pub fn serve(
         |> response.set_body(bit_builder.from_string(""))
     }
   }
-  elli.become(service, on_port: on_port)
 }
 
 pub type Middleware(req, res, ctx_in, ctx_out) =
