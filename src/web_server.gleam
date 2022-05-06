@@ -4,6 +4,9 @@ import gleam/option.{None, Option, Some}
 import gleam/http
 import path_parser as pp
 import gleam/bit_builder.{BitBuilder}
+import gleam/list
+import gleam/io
+import gleam/string
 
 // pub type Response{
 //   ResponseString(),
@@ -18,22 +21,61 @@ pub type EndPointHandler(req, res, ctx, params) =
 
 pub fn route(handlers: List(Handler(req, res, ctx))) -> Handler(req, res, ctx) {
   // Call each handler, return if successful
-  fn(req, cxt) { None }
+  fn(req, cxt) {
+    list.fold_until(
+      handlers,
+      None,
+      fn(acc, handler) {
+        case handler(req, cxt) {
+          None -> list.Continue(None)
+          Some(resp) -> list.Stop(Some(resp))
+        }
+      },
+    )
+  }
 }
 
 pub fn scope(
   route: pp.Parser(params),
-  handlers: Handler(req, res, ctx),
+  handler: Handler(req, res, ctx),
 ) -> Handler(req, res, ctx) {
-  fn(req, ctx) { None }
+  fn(req: Request(req), ctx) {
+    // io.debug(route)
+    case pp.parse(req.path, route, True) {
+      Ok(response) -> {
+        let next_path =
+          response.left_over
+          |> string.join("/")
+        let next_req = Request(..req, path: next_path)
+        handler(req, ctx)
+      }
+      Error(_) -> {
+        io.debug("Scope didn't match")
+        None
+      }
+    }
+  }
 }
 
 pub fn match(
   route: pp.Parser(params),
-  method: http.Method,
+  wanted_method: http.Method,
   handler: EndPointHandler(req, res, ctx, params),
 ) -> Handler(req, res, ctx) {
-  fn(req, ctx) { None }
+  fn(req: Request(req), ctx) {
+    let is_wanted_method = case wanted_method {
+      http.Other("*") -> True
+      _ -> req.method == wanted_method
+    }
+    case is_wanted_method {
+      True ->
+        case pp.parse(req.path, route, False) {
+          Ok(response) -> Some(handler(req, ctx, response.parsed))
+          Error(_) -> None
+        }
+      False -> None
+    }
+  }
 }
 
 pub fn get(
@@ -71,9 +113,11 @@ pub fn service(
   fn(request: Request(BitString)) {
     case handler(request, context) {
       Some(resp) -> resp
-      None ->
+      None -> {
+        let body = bit_builder.from_string("Not Found")
         response.new(404)
-        |> response.set_body(bit_builder.from_string(""))
+        |> response.set_body(body)
+      }
     }
   }
 }

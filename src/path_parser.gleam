@@ -41,7 +41,15 @@ fn map2(parser_a: Parser(a), parser_b: Parser(b), f: fn(a, b) -> c) -> Parser(c)
   then(parser_a, fn(a) { map(parser_b, fn(b) { f(a, b) }) })
 }
 
-pub fn parse(input: String, parser: Parser(a)) -> Result(a, Error) {
+pub type Response(a) {
+  Response(parsed: a, left_over: Segments)
+}
+
+pub fn parse(
+  input: String,
+  parser: Parser(a),
+  allow_left_over: Bool,
+) -> Result(Response(a), Error) {
   let segments =
     input
     |> string.split("/")
@@ -49,11 +57,15 @@ pub fn parse(input: String, parser: Parser(a)) -> Result(a, Error) {
 
   try res = use_parser(parser, segments)
 
-  let #(parsed, remainder) = res
+  let #(parsed, left_over) = res
 
-  case remainder {
-    [] -> Ok(parsed)
-    _ -> Error(TooManySegments)
+  case allow_left_over {
+    True -> Ok(Response(parsed, left_over))
+    False ->
+      case left_over {
+        [] -> Ok(Response(parsed, []))
+        _ -> Error(TooManySegments)
+      }
   }
 }
 
