@@ -1,4 +1,4 @@
-import web_server.{Handler, WebRequest}
+import web_server.{Handler, WebRequest, WebResponse}
 import gleam/option.{Some}
 import gleam/http
 import gleam/http/request.{Request}

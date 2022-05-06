@@ -2,7 +2,7 @@
 import gleam/http/response.{Response}
 import gleam/http/request.{Request}
 import gleam/option.{None, Option, Some}
-import web_server.{Handler, WebRequest} as web
+import web_server.{Handler, WebRequest, WebResponse} as web
 import middleware
 import gleam/bit_builder.{BitBuilder}
 import path_parser as pp
@@ -37,7 +37,7 @@ fn middleware_authenticate(
   req: WebRequest,
   ctx: Context,
   handler,
-) -> Option(Response(BitBuilder)) {
+) -> Option(WebResponse) {
   case authenticate(req, ctx) {
     Ok(user) -> {
       let context_authenticated = ContextAuthenticated(db: ctx.db, user: user)
@@ -68,17 +68,13 @@ fn middleware_must_be_admin(req: WebRequest, ctx: ContextAuthenticated, handler)
 }
 
 // End points
-fn home(req: WebRequest, ctx: ContextAuthenticated, _) -> Response(BitBuilder) {
+fn home(req: WebRequest, ctx: ContextAuthenticated, _) -> WebResponse {
   let body = bit_builder.from_string("")
   response.new(200)
   |> response.set_body(body)
 }
 
-fn language_list(
-  req: WebRequest,
-  ctx: ContextAuthenticated,
-  _,
-) -> Response(BitBuilder) {
+fn language_list(req: WebRequest, ctx: ContextAuthenticated, _) -> WebResponse {
   let body = bit_builder.from_string("")
   response.new(200)
   |> response.set_body(body)
@@ -88,7 +84,7 @@ fn language_show(
   req: WebRequest,
   ctx: ContextAuthenticated,
   params,
-) -> Response(BitBuilder) {
+) -> WebResponse {
   let body = bit_builder.from_string("")
   response.new(200)
   |> response.set_body(body)
@@ -98,19 +94,19 @@ fn language_delete(
   req: WebRequest,
   ctx: ContextAuthenticated,
   params,
-) -> Response(BitBuilder) {
+) -> WebResponse {
   let body = bit_builder.from_string("")
   response.new(200)
   |> response.set_body(body)
 }
 
-fn version(req: WebRequest, ctx: Context, _) -> Response(BitBuilder) {
+fn version(req: WebRequest, ctx: Context, _) -> WebResponse {
   let body = bit_builder.from_string("1.0.0")
   response.new(200)
   |> response.set_body(body)
 }
 
-fn public_data(req: WebRequest, ctx: Context, _) -> Response(BitBuilder) {
+fn public_data(req: WebRequest, ctx: Context, _) -> WebResponse {
   let body = bit_builder.from_string("{\"message\":\"Hello World\"}")
   response.new(200)
   |> response.set_body(body)

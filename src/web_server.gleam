@@ -16,14 +16,17 @@ pub type WebRequest {
   WebRequest(request: request.Request(BitString), partial_path: String)
 }
 
+pub type WebResponse =
+  Response(BitBuilder)
+
 // A handler is a function that takes a request, context and returns a response
-pub type Handler(req, res, ctx) =
-  fn(WebRequest, ctx) -> Option(Response(res))
+pub type Handler(ctx) =
+  fn(WebRequest, ctx) -> Option(WebResponse)
 
-pub type EndPointHandler(req, res, ctx, params) =
-  fn(WebRequest, ctx, params) -> Response(res)
+pub type EndPointHandler(ctx, params) =
+  fn(WebRequest, ctx, params) -> WebResponse
 
-pub fn route(handlers: List(Handler(req, res, ctx))) -> Handler(req, res, ctx) {
+pub fn route(handlers: List(Handler(ctx))) -> Handler(ctx) {
   // Call each handler, return if successful
   fn(req: WebRequest, cxt: ctx) {
     list.fold_until(
@@ -39,10 +42,7 @@ pub fn route(handlers: List(Handler(req, res, ctx))) -> Handler(req, res, ctx) {
   }
 }
 
-pub fn scope(
-  route: pp.Parser(params),
-  handler: Handler(req, res, ctx),
-) -> Handler(req, res, ctx) {
+pub fn scope(route: pp.Parser(params), handler: Handler(ctx)) -> Handler(ctx) {
   fn(req: WebRequest, ctx) {
     let path = req.partial_path
     case pp.parse(path, route) {
@@ -71,8 +71,8 @@ pub fn scope(
 pub fn match(
   route: pp.Parser(params),
   wanted_method: http.Method,
-  handler: EndPointHandler(req, res, ctx, params),
-) -> Handler(req, res, ctx) {
+  handler: EndPointHandler(ctx, params),
+) -> Handler(ctx) {
   fn(req: WebRequest, ctx) {
     let path = req.partial_path
     let is_wanted_method = case wanted_method {
@@ -92,36 +92,33 @@ pub fn match(
 
 pub fn get(
   route: pp.Parser(params),
-  handler: EndPointHandler(req, res, ctx, params),
-) -> Handler(req, res, ctx) {
+  handler: EndPointHandler(ctx, params),
+) -> Handler(ctx) {
   match(route, http.Get, handler)
 }
 
 pub fn post(
   route: pp.Parser(params),
-  handler: EndPointHandler(req, res, ctx, params),
-) -> Handler(req, res, ctx) {
+  handler: EndPointHandler(ctx, params),
+) -> Handler(ctx) {
   match(route, http.Post, handler)
 }
 
 pub fn delete(
   route: pp.Parser(params),
-  handler: EndPointHandler(req, res, ctx, params),
-) -> Handler(req, res, ctx) {
+  handler: EndPointHandler(ctx, params),
+) -> Handler(ctx) {
   match(route, http.Delete, handler)
 }
 
 pub fn any(
   route: pp.Parser(params),
-  handler: EndPointHandler(req, res, ctx, params),
-) -> Handler(req, res, ctx) {
+  handler: EndPointHandler(ctx, params),
+) -> Handler(ctx) {
   match(route, http.Other("*"), handler)
 }
 
-pub fn service(
-  handler: Handler(BitString, BitBuilder, context),
-  context context: context,
-) {
+pub fn service(handler: Handler(context), context context: context) {
   fn(request: request.Request(BitString)) {
     let web_request = WebRequest(request: request, partial_path: request.path)
     case handler(web_request, context) {
@@ -135,13 +132,13 @@ pub fn service(
   }
 }
 
-pub type Middleware(req, res, ctx_in, ctx_out) =
-  fn(WebRequest, ctx_in, Handler(req, res, ctx_out)) -> Option(Response(res))
+pub type Middleware(ctx_in, ctx_out) =
+  fn(WebRequest, ctx_in, Handler(ctx_out)) -> Option(WebResponse)
 
 pub fn middleware(
-  middleware_handler: Middleware(req, res, ctx_in, ctx_out),
-) -> fn(Handler(req, res, ctx_out)) -> Handler(req, res, ctx_in) {
-  fn(handler: Handler(req, res, ctx_out)) {
+  middleware_handler: Middleware(ctx_in, ctx_out),
+) -> fn(Handler(ctx_out)) -> Handler(ctx_in) {
+  fn(handler: Handler(ctx_out)) {
     fn(req: WebRequest, ctx: ctx_in) { middleware_handler(req, ctx, handler) }
   }
 }
