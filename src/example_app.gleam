@@ -2,7 +2,7 @@
 import gleam/http/response.{Response}
 import gleam/http/request.{Request}
 import gleam/option.{None, Option, Some}
-import web_server.{Handler} as web
+import web_server.{Handler, WebRequest} as web
 import middleware
 import gleam/bit_builder.{BitBuilder}
 import path_parser as pp
@@ -20,12 +20,12 @@ type User {
   User(email: String, role: String)
 }
 
-fn middleware_track(req: Request(req), state, ctx: Context, handler) {
+fn middleware_track(req: WebRequest, ctx: Context, handler) {
   // Track access to the app
-  handler(req, state, ctx)
+  handler(req, ctx)
 }
 
-fn authenticate(req: Request(req), ctx: Context) -> Result(User, String) {
+fn authenticate(req: WebRequest, ctx: Context) -> Result(User, String) {
   // Get cookie from request
   // Access the DB using the url in context
   // TODO, set session cookie
@@ -34,15 +34,14 @@ fn authenticate(req: Request(req), ctx: Context) -> Result(User, String) {
 }
 
 fn middleware_authenticate(
-  req: Request(req),
-  state: web.HandlerState,
+  req: WebRequest,
   ctx: Context,
   handler,
 ) -> Option(Response(BitBuilder)) {
   case authenticate(req, ctx) {
     Ok(user) -> {
       let context_authenticated = ContextAuthenticated(db: ctx.db, user: user)
-      handler(req, state, context_authenticated)
+      handler(req, context_authenticated)
     }
     Error(_) -> {
       // Return unauthorised
@@ -54,11 +53,11 @@ fn middleware_authenticate(
   }
 }
 
-fn middleware_must_be_admin(req, state, ctx: ContextAuthenticated, handler) {
+fn middleware_must_be_admin(req: WebRequest, ctx: ContextAuthenticated, handler) {
   // Check that the user is admin
   let is_admin = ctx.user.role == "admin"
   case is_admin {
-    True -> handler(req, state, ctx)
+    True -> handler(req, ctx)
     False -> {
       let resp =
         response.new(401)
@@ -69,14 +68,14 @@ fn middleware_must_be_admin(req, state, ctx: ContextAuthenticated, handler) {
 }
 
 // End points
-fn home(req: Request(req), ctx: ContextAuthenticated, _) -> Response(BitBuilder) {
+fn home(req: WebRequest, ctx: ContextAuthenticated, _) -> Response(BitBuilder) {
   let body = bit_builder.from_string("")
   response.new(200)
   |> response.set_body(body)
 }
 
 fn language_list(
-  req: Request(req),
+  req: WebRequest,
   ctx: ContextAuthenticated,
   _,
 ) -> Response(BitBuilder) {
@@ -86,7 +85,7 @@ fn language_list(
 }
 
 fn language_show(
-  req: Request(req),
+  req: WebRequest,
   ctx: ContextAuthenticated,
   params,
 ) -> Response(BitBuilder) {
@@ -96,7 +95,7 @@ fn language_show(
 }
 
 fn language_delete(
-  req: Request(req),
+  req: WebRequest,
   ctx: ContextAuthenticated,
   params,
 ) -> Response(BitBuilder) {
@@ -105,13 +104,13 @@ fn language_delete(
   |> response.set_body(body)
 }
 
-fn version(req: Request(req), ctx: Context, _) -> Response(BitBuilder) {
+fn version(req: WebRequest, ctx: Context, _) -> Response(BitBuilder) {
   let body = bit_builder.from_string("1.0.0")
   response.new(200)
   |> response.set_body(body)
 }
 
-fn public_data(req: Request(req), ctx: Context, _) -> Response(BitBuilder) {
+fn public_data(req: WebRequest, ctx: Context, _) -> Response(BitBuilder) {
   let body = bit_builder.from_string("{\"message\":\"Hello World\"}")
   response.new(200)
   |> response.set_body(body)

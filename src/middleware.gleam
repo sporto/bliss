@@ -1,4 +1,4 @@
-import web_server.{Handler}
+import web_server.{Handler, WebRequest}
 import gleam/option.{Some}
 import gleam/http
 import gleam/http/request.{Request}
@@ -25,16 +25,16 @@ fn add_cors_headers(response, origin: String) {
 }
 
 pub fn cors(origin: String) {
-  fn(req: Request(req), state, ctx, handler) {
+  fn(req: WebRequest, ctx, handler) {
     //   When OPTIONS we need to respond with the CORS headers
-    let resp = case req.method {
+    let resp = case req.request.method {
       http.Options -> {
         let resp =
           response.new(202)
           |> response.set_body(bit_builder.from_string(""))
         Some(resp)
       }
-      _ -> handler(req, state, ctx)
+      _ -> handler(req, ctx)
     }
 
     resp
