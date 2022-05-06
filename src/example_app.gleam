@@ -19,12 +19,12 @@ type User {
   User(email: String, role: String)
 }
 
-fn middleware_track(req: WebRequest, ctx: Context, handler) {
+fn middleware_track(req: WebRequest(params), ctx: Context, handler) {
   // Track access to the app
   handler(req, ctx)
 }
 
-fn authenticate(req: WebRequest, ctx: Context) -> Result(User, String) {
+fn authenticate(req: WebRequest(params), ctx: Context) -> Result(User, String) {
   // Get cookie from request
   // Access the DB using the url in context
   // TODO, set session cookie
@@ -33,7 +33,7 @@ fn authenticate(req: WebRequest, ctx: Context) -> Result(User, String) {
 }
 
 fn middleware_authenticate(
-  req: WebRequest,
+  req: WebRequest(params),
   ctx: Context,
   handler,
 ) -> Option(WebResponse) {
@@ -52,7 +52,11 @@ fn middleware_authenticate(
   }
 }
 
-fn middleware_must_be_admin(req: WebRequest, ctx: ContextAuthenticated, handler) {
+fn middleware_must_be_admin(
+  req: WebRequest(params),
+  ctx: ContextAuthenticated,
+  handler,
+) {
   // Check that the user is admin
   let is_admin = ctx.user.role == "admin"
   case is_admin {
@@ -67,22 +71,24 @@ fn middleware_must_be_admin(req: WebRequest, ctx: ContextAuthenticated, handler)
 }
 
 // End points
-fn home(req: WebRequest, ctx: ContextAuthenticated, _) -> WebResponse {
+fn home(req: WebRequest(params), ctx: ContextAuthenticated) -> WebResponse {
   let body = bit_builder.from_string("")
   response.new(200)
   |> response.set_body(body)
 }
 
-fn language_list(req: WebRequest, ctx: ContextAuthenticated, _) -> WebResponse {
+fn language_list(
+  req: WebRequest(params),
+  ctx: ContextAuthenticated,
+) -> WebResponse {
   let body = bit_builder.from_string("")
   response.new(200)
   |> response.set_body(body)
 }
 
 fn language_show(
-  req: WebRequest,
+  req: WebRequest(params),
   ctx: ContextAuthenticated,
-  params,
 ) -> WebResponse {
   let body = bit_builder.from_string("")
   response.new(200)
@@ -90,22 +96,21 @@ fn language_show(
 }
 
 fn language_delete(
-  req: WebRequest,
+  req: WebRequest(params),
   ctx: ContextAuthenticated,
-  params,
 ) -> WebResponse {
   let body = bit_builder.from_string("")
   response.new(200)
   |> response.set_body(body)
 }
 
-fn version(req: WebRequest, ctx: Context, _) -> WebResponse {
+fn version(req: WebRequest(params), ctx: Context) -> WebResponse {
   let body = bit_builder.from_string("1.0.0")
   response.new(200)
   |> response.set_body(body)
 }
 
-fn public_data(req: WebRequest, ctx: Context, _) -> WebResponse {
+fn public_data(req: WebRequest(params), ctx: Context) -> WebResponse {
   let body = bit_builder.from_string("{\"message\":\"Hello World\"}")
   response.new(200)
   |> response.set_body(body)

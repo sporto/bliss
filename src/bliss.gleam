@@ -8,23 +8,27 @@ import gleam/list
 import gleam/option.{None, Option, Some}
 import gleam/string
 
-pub type WebRequest {
-  WebRequest(request: request.Request(BitString), partial_path: String)
+pub type WebRequest(p) {
+  WebRequest(
+    request: request.Request(BitString),
+    partial_path: String,
+    params: p,
+  )
 }
 
 pub type WebResponse =
   Response(BitBuilder)
 
 // A handler is a function that takes a request, context and returns a response
-pub type Handler(ctx) =
-  fn(WebRequest, ctx) -> Option(WebResponse)
+pub type Handler(ctx, params) =
+  fn(WebRequest(params), ctx) -> Option(WebResponse)
 
 pub type EndPointHandler(ctx, params) =
-  fn(WebRequest, ctx, params) -> WebResponse
+  fn(WebRequest(params), ctx) -> WebResponse
 
-pub fn route(handlers: List(Handler(ctx))) -> Handler(ctx) {
+pub fn route(handlers: List(Handler(ctx, params))) -> Handler(ctx, params) {
   // Call each handler, return if successful
-  fn(req: WebRequest, cxt: ctx) {
+  fn(req: WebRequest(params), cxt: ctx) {
     list.fold_until(
       handlers,
       None,
@@ -38,27 +42,34 @@ pub fn route(handlers: List(Handler(ctx))) -> Handler(ctx) {
   }
 }
 
-pub fn scope(route: pp.Parser(params), handler: Handler(ctx)) -> Handler(ctx) {
-  fn(req: WebRequest, ctx) {
+pub fn scope(
+  route: pp.Parser(params_out),
+  handler: Handler(ctx, params_out),
+) -> Handler(ctx, params_in) {
+  fn(req: WebRequest(params_in), ctx) {
     // We take the path from partial_path instead of request.path
     // Because ancestor scopes can consume part of the path
     // We only want to match on the left over path segments
+    let call_handler = fn(params: params_out, left_over: List(String)) {
+      let next_path =
+        left_over
+        |> string.join("/")
+      // TODO, we need to pass the upstream params
+      let next_req: WebRequest(params_out) =
+        WebRequest(
+          request: req.request,
+          partial_path: next_path,
+          params: params,
+        )
+      handler(next_req, ctx)
+    }
+
     let path = req.partial_path
     case pp.parse(path, route) {
-      Ok(pp.ExactMatch(params)) -> {
-        // TODO, we need to pass the params
+      Ok(pp.ExactMatch(params)) ->
         // The whole path has been consumed
-        let next_req = WebRequest(..req, partial_path: "")
-        handler(next_req, ctx)
-      }
-      Ok(pp.PartialMatch(params, left_over)) -> {
-        let next_path =
-          left_over
-          |> string.join("/")
-        let next_req = WebRequest(..req, partial_path: next_path)
-        // TODO, we need to pass the params
-        handler(next_req, ctx)
-      }
+        call_handler(params, [])
+      Ok(pp.PartialMatch(params, left_over)) -> call_handler(params, left_over)
       Error(_) -> {
         io.debug("Scope didn't match")
         None
@@ -68,20 +79,28 @@ pub fn scope(route: pp.Parser(params), handler: Handler(ctx)) -> Handler(ctx) {
 }
 
 pub fn match(
-  route: pp.Parser(params),
+  route: pp.Parser(params_out),
   wanted_method: http.Method,
-  handler: EndPointHandler(ctx, params),
-) -> Handler(ctx) {
-  fn(req: WebRequest, ctx) {
+  handler: EndPointHandler(ctx, params_out),
+) -> Handler(ctx, params_in) {
+  fn(req: WebRequest(params_in), ctx) {
     let path = req.partial_path
+
     let is_wanted_method = case wanted_method {
       http.Other("*") -> True
       _ -> req.request.method == wanted_method
     }
+
+    let call_handler = fn(params: params_out) {
+      let next_req: WebRequest(params_out) =
+        WebRequest(request: req.request, partial_path: "", params: params)
+      Some(handler(next_req, ctx))
+    }
+
     case is_wanted_method {
       True ->
         case pp.parse(path, route) {
-          Ok(pp.ExactMatch(params)) -> Some(handler(req, ctx, params))
+          Ok(pp.ExactMatch(params)) -> call_handler(params)
           _ -> None
         }
       False -> None
@@ -90,36 +109,38 @@ pub fn match(
 }
 
 pub fn get(
-  route: pp.Parser(params),
-  handler: EndPointHandler(ctx, params),
-) -> Handler(ctx) {
+  route: pp.Parser(params_out),
+  handler: EndPointHandler(ctx, params_out),
+) -> Handler(ctx, params_in) {
   match(route, http.Get, handler)
 }
 
 pub fn post(
-  route: pp.Parser(params),
-  handler: EndPointHandler(ctx, params),
-) -> Handler(ctx) {
+  route: pp.Parser(params_out),
+  handler: EndPointHandler(ctx, params_out),
+) -> Handler(ctx, params_in) {
   match(route, http.Post, handler)
 }
 
 pub fn delete(
-  route: pp.Parser(params),
-  handler: EndPointHandler(ctx, params),
-) -> Handler(ctx) {
+  route: pp.Parser(params_out),
+  handler: EndPointHandler(ctx, params_out),
+) -> Handler(ctx, params_in) {
   match(route, http.Delete, handler)
 }
 
 pub fn any(
-  route: pp.Parser(params),
-  handler: EndPointHandler(ctx, params),
-) -> Handler(ctx) {
+  route: pp.Parser(params_out),
+  handler: EndPointHandler(ctx, params_out),
+) -> Handler(ctx, params_in) {
   match(route, http.Other("*"), handler)
 }
 
-pub fn service(handler: Handler(context), context context: context) {
+pub fn service(handler: Handler(context, #()), context context: context) {
   fn(request: request.Request(BitString)) {
-    let web_request = WebRequest(request: request, partial_path: request.path)
+    let web_request: WebRequest(#()) =
+      WebRequest(request: request, partial_path: request.path, params: #())
+
     case handler(web_request, context) {
       Some(resp) -> resp
       None -> {
@@ -131,13 +152,16 @@ pub fn service(handler: Handler(context), context context: context) {
   }
 }
 
-pub type Middleware(ctx_in, ctx_out) =
-  fn(WebRequest, ctx_in, Handler(ctx_out)) -> Option(WebResponse)
+pub type Middleware(ctx_in, ctx_out, params_in, params_out) =
+  fn(WebRequest(params_in), ctx_in, Handler(ctx_out, params_out)) ->
+    Option(WebResponse)
 
 pub fn middleware(
-  middleware_handler: Middleware(ctx_in, ctx_out),
-) -> fn(Handler(ctx_out)) -> Handler(ctx_in) {
-  fn(handler: Handler(ctx_out)) {
-    fn(req: WebRequest, ctx: ctx_in) { middleware_handler(req, ctx, handler) }
+  middleware_handler: Middleware(ctx_in, ctx_out, params_in, params_out),
+) -> fn(Handler(ctx_out, params_out)) -> Handler(ctx_in, params_in) {
+  fn(handler: Handler(ctx_out, params_out)) {
+    fn(req: WebRequest(params_in), ctx: ctx_in) {
+      middleware_handler(req, ctx, handler)
+    }
   }
 }
