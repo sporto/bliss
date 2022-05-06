@@ -20,9 +20,9 @@ type User {
   User(email: String, role: String)
 }
 
-fn middleware_track(req: Request(req), ctx: Context, handler) {
+fn middleware_track(req: Request(req), state, ctx: Context, handler) {
   // Track access to the app
-  handler(req, ctx)
+  handler(req, state, ctx)
 }
 
 fn authenticate(req: Request(req), ctx: Context) -> Result(User, String) {
@@ -35,13 +35,14 @@ fn authenticate(req: Request(req), ctx: Context) -> Result(User, String) {
 
 fn middleware_authenticate(
   req: Request(req),
+  state: web.HandlerState,
   ctx: Context,
   handler,
 ) -> Option(Response(BitBuilder)) {
   case authenticate(req, ctx) {
     Ok(user) -> {
       let context_authenticated = ContextAuthenticated(db: ctx.db, user: user)
-      handler(req, context_authenticated)
+      handler(req, state, context_authenticated)
     }
     Error(_) -> {
       // Return unauthorised
@@ -53,11 +54,11 @@ fn middleware_authenticate(
   }
 }
 
-fn middleware_must_be_admin(req, ctx: ContextAuthenticated, handler) {
+fn middleware_must_be_admin(req, state, ctx: ContextAuthenticated, handler) {
   // Check that the user is admin
   let is_admin = ctx.user.role == "admin"
   case is_admin {
-    True -> handler(req, ctx)
+    True -> handler(req, state, ctx)
     False -> {
       let resp =
         response.new(401)

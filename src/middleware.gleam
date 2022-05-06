@@ -25,7 +25,7 @@ fn add_cors_headers(response, origin: String) {
 }
 
 pub fn cors(origin: String) {
-  fn(req: Request(req), ctx, handler) {
+  fn(req: Request(req), state, ctx, handler) {
     //   When OPTIONS we need to respond with the CORS headers
     let resp = case req.method {
       http.Options -> {
@@ -34,7 +34,7 @@ pub fn cors(origin: String) {
           |> response.set_body(bit_builder.from_string(""))
         Some(resp)
       }
-      _ -> handler(req, ctx)
+      _ -> handler(req, state, ctx)
     }
 
     resp
