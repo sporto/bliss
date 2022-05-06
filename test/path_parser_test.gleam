@@ -5,27 +5,18 @@ import path_parser as p
 pub fn top_test() {
   let parser = p.get0()
 
-  let expected = Ok(p.Response(#(), []))
+  let expected = Ok(p.ExactMatch(#()))
 
-  p.parse("/", parser, False)
+  p.parse("/", parser)
   |> should.equal(expected)
 }
 
 pub fn more_segments_test() {
   let parser = p.get0()
 
-  let expected = Error(p.TooManySegments)
+  let expected = Ok(p.PartialMatch(#(), ["users"]))
 
-  p.parse("/users", parser, False)
-  |> should.equal(expected)
-}
-
-pub fn more_segments_allowed_test() {
-  let parser = p.get0()
-
-  let expected = Ok(p.Response(#(), ["users"]))
-
-  p.parse("/users", parser, True)
+  p.parse("/users", parser)
   |> should.equal(expected)
 }
 
@@ -34,9 +25,9 @@ pub fn one_segment_test() {
     p.get0()
     |> p.seg("users")
 
-  let expected = Ok(p.Response(#(), []))
+  let expected = Ok(p.ExactMatch(#()))
 
-  p.parse("/users", parser, False)
+  p.parse("/users", parser)
   |> should.equal(expected)
 }
 
@@ -46,9 +37,9 @@ pub fn just_segments_test() {
     |> p.seg("users")
     |> p.seg("active")
 
-  let expected = Ok(p.Response(#(), []))
+  let expected = Ok(p.ExactMatch(#()))
 
-  p.parse("/users/active", parser, False)
+  p.parse("/users/active", parser)
   |> should.equal(expected)
 }
 
@@ -59,9 +50,9 @@ pub fn get1_test() {
     |> p.int
 
   let params = #(1)
-  let expected = Ok(p.Response(params, []))
+  let expected = Ok(p.ExactMatch(params))
 
-  p.parse("/users/1", parser, False)
+  p.parse("/users/1", parser)
   |> should.equal(expected)
 }
 
@@ -74,9 +65,9 @@ pub fn get2_test() {
     |> p.str
 
   let params = #(1, "art")
-  let expected = Ok(p.Response(params, []))
+  let expected = Ok(p.ExactMatch(params))
 
-  p.parse("/users/1/hobbies/art", parser, False)
+  p.parse("/users/1/hobbies/art", parser)
   |> should.equal(expected)
 }
 
@@ -89,8 +80,8 @@ pub fn get3_test() {
     |> p.int
 
   let params = #(2020, 11, 21)
-  let expected = Ok(p.Response(params, []))
+  let expected = Ok(p.ExactMatch(params))
 
-  p.parse("/blog/2020/11/21", parser, False)
+  p.parse("/blog/2020/11/21", parser)
   |> should.equal(expected)
 }

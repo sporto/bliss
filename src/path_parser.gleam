@@ -12,8 +12,12 @@ pub opaque type Parser(a) {
 
 pub type Error {
   NotEnoughSegments
-  TooManySegments
   Expected(String)
+}
+
+pub type Response(a) {
+  ExactMatch(parsed: a)
+  PartialMatch(parsed: a, left_over: Segments)
 }
 
 fn then(parser: Parser(a), f: fn(a) -> Parser(b)) -> Parser(b) {
@@ -41,15 +45,7 @@ fn map2(parser_a: Parser(a), parser_b: Parser(b), f: fn(a, b) -> c) -> Parser(c)
   then(parser_a, fn(a) { map(parser_b, fn(b) { f(a, b) }) })
 }
 
-pub type Response(a) {
-  Response(parsed: a, left_over: Segments)
-}
-
-pub fn parse(
-  input: String,
-  parser: Parser(a),
-  allow_left_over: Bool,
-) -> Result(Response(a), Error) {
+pub fn parse(input: String, parser: Parser(a)) -> Result(Response(a), Error) {
   let segments =
     input
     |> string.split("/")
@@ -59,13 +55,9 @@ pub fn parse(
 
   let #(parsed, left_over) = res
 
-  case allow_left_over {
-    True -> Ok(Response(parsed, left_over))
-    False ->
-      case left_over {
-        [] -> Ok(Response(parsed, []))
-        _ -> Error(TooManySegments)
-      }
+  case left_over {
+    [] -> Ok(ExactMatch(parsed))
+    _ -> Ok(PartialMatch(parsed, left_over))
   }
 }
 

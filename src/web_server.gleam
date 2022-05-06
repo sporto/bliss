@@ -41,13 +41,17 @@ pub fn scope(
 ) -> Handler(req, res, ctx) {
   fn(req: Request(req), ctx) {
     // io.debug(route)
-    case pp.parse(req.path, route, True) {
-      Ok(response) -> {
-        let next_path =
-          response.left_over
-          |> string.join("/")
-        let next_req = Request(..req, path: next_path)
+    case pp.parse(req.path, route) {
+      Ok(pp.ExactMatch(params)) ->
+        // TODO, we need to pass the params
         handler(req, ctx)
+      Ok(pp.PartialMatch(params, left_over)) -> {
+        let next_path =
+          left_over
+          |> string.join("/")
+        // TODO, don't change the request, find another way to pass the left_over
+        let next_req = Request(..req, path: next_path)
+        handler(next_req, ctx)
       }
       Error(_) -> {
         io.debug("Scope didn't match")
@@ -69,9 +73,9 @@ pub fn match(
     }
     case is_wanted_method {
       True ->
-        case pp.parse(req.path, route, False) {
-          Ok(response) -> Some(handler(req, ctx, response.parsed))
-          Error(_) -> None
+        case pp.parse(req.path, route) {
+          Ok(pp.ExactMatch(params)) -> Some(handler(req, ctx, params))
+          _ -> None
         }
       False -> None
     }
