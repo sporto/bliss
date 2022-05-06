@@ -8,10 +8,6 @@ import gleam/list
 import gleam/io
 import gleam/string
 
-// pub type Response{
-//   ResponseString(),
-//   ResponseJSON(response.Response),
-// }
 pub type WebRequest {
   WebRequest(request: request.Request(BitString), partial_path: String)
 }
@@ -44,6 +40,9 @@ pub fn route(handlers: List(Handler(ctx))) -> Handler(ctx) {
 
 pub fn scope(route: pp.Parser(params), handler: Handler(ctx)) -> Handler(ctx) {
   fn(req: WebRequest, ctx) {
+    // We take the path from partial_path instead of request.path
+    // Because ancestor scopes can consume part of the path
+    // We only want to match on the left over path segments
     let path = req.partial_path
     case pp.parse(path, route) {
       Ok(pp.ExactMatch(params)) -> {

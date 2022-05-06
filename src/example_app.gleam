@@ -114,9 +114,11 @@ fn public_data(req: WebRequest, ctx: Context, _) -> WebResponse {
 }
 
 pub fn app() {
+  // The initial context can be any custom type defined by the application
   let initial_context = Context("db_url")
 
   // Define application paths
+  // Using the path parser
   let path_version =
     pp.get0()
     |> pp.seg("version")
