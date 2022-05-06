@@ -1,12 +1,11 @@
-// Middleware
-import gleam/http/response.{Response}
-import gleam/http/request.{Request}
-import gleam/option.{None, Option, Some}
-import web_server.{Handler, WebRequest, WebResponse} as web
-import middleware
+import bliss.{Handler, WebRequest, WebResponse}
+import bliss/middleware
+import bliss/path_parser as pp
 import gleam/bit_builder.{BitBuilder}
-import path_parser as pp
 import gleam/http/elli
+import gleam/http/request.{Request}
+import gleam/http/response.{Response}
+import gleam/option.{None, Option, Some}
 
 type Context {
   Context(db: String)
@@ -143,17 +142,20 @@ pub fn app() {
     |> pp.seg("app")
 
   let public_api =
-    web.route([web.get(path_version, version), web.get(path_data, public_data)])
-    |> web.middleware(middleware.cors("*"))
+    bliss.route([
+      bliss.get(path_version, version),
+      bliss.get(path_data, public_data),
+    ])
+    |> bliss.middleware(middleware.cors("*"))
 
   let app_api =
-    web.route([
-      web.get(path_top, home),
-      web.get(path_languages, language_list),
-      web.get(path_language, language_show),
+    bliss.route([
+      bliss.get(path_top, home),
+      bliss.get(path_languages, language_list),
+      bliss.get(path_language, language_show),
       // Some routes can only be used by an admin
-      web.route([web.delete(path_language, language_delete)])
-      |> web.middleware(middleware_must_be_admin),
+      bliss.route([bliss.delete(path_language, language_delete)])
+      |> bliss.middleware(middleware_must_be_admin),
     ])
     // Add middlewares
     // The middlewares at the bottom of the pipeline are executed first
@@ -161,15 +163,18 @@ pub fn app() {
     // and the response in the way out
     //
     // Handle CORS
-    |> web.middleware(middleware.cors("https://app.com"))
+    |> bliss.middleware(middleware.cors("https://app.com"))
     // Must be authenticated in order to access any app endpoint
-    |> web.middleware(middleware_authenticate)
+    |> bliss.middleware(middleware_authenticate)
 
-  web.route([web.scope(path_top, public_api), web.scope(path_app, app_api)])
+  bliss.route([
+    bliss.scope(path_top, public_api),
+    bliss.scope(path_app, app_api),
+  ])
   // Add middleware to track accesss
-  |> web.middleware(middleware_track)
+  |> bliss.middleware(middleware_track)
   // Start the server
-  |> web.service(initial_context)
+  |> bliss.service(initial_context)
 }
 
 pub fn main() {
