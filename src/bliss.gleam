@@ -91,9 +91,7 @@ pub fn scope(pattern: String, handler: Handler(ctx)) -> Handler(ctx) {
         call_next_handler(params, [])
       Ok(dpp.PartialMatch(params, left_over)) ->
         call_next_handler(params, left_over)
-      Error(_) -> {
-        Error(Unmatched)
-      }
+      Error(_) -> Error(Unmatched)
     }
   }
 }
