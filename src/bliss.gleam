@@ -1,4 +1,5 @@
-import bliss/path_parser as pp
+import bliss/dict_path_parser as dpp
+import bliss/static_path_parser as spp
 import gleam/bit_builder.{BitBuilder}
 import gleam/http
 import gleam/http/request
@@ -61,7 +62,7 @@ fn make_next_request(
 }
 
 pub fn scope(
-  route: pp.Parser(params_out),
+  route: spp.Parser(params_out),
   handler: Handler(ctx, #(params_in, params_out)),
 ) -> Handler(ctx, params_in) {
   fn(req: WebRequest(params_in), ctx) {
@@ -74,11 +75,11 @@ pub fn scope(
     }
 
     let path = req.partial_path
-    case pp.parse(path, route) {
-      Ok(pp.ExactMatch(params)) ->
+    case spp.parse(path, route) {
+      Ok(spp.ExactMatch(params)) ->
         // The whole path has been consumed by the parser
         call_next_handler(params, [])
-      Ok(pp.PartialMatch(params, left_over)) ->
+      Ok(spp.PartialMatch(params, left_over)) ->
         call_next_handler(params, left_over)
       Error(_) -> {
         io.debug("Scope didn't match")
@@ -88,28 +89,54 @@ pub fn scope(
   }
 }
 
-pub fn match(
-  route: pp.Parser(params_out),
+fn is_wanted_method(wanted_method: http.Method, req: WebRequest(p)) {
+  case wanted_method {
+    http.Other("*") -> True
+    _ -> req.request.method == wanted_method
+  }
+}
+
+pub fn match_static(
+  route: spp.Parser(params_out),
   wanted_method: http.Method,
   handler: EndPointHandler(ctx, #(params_in, params_out)),
 ) -> Handler(ctx, params_in) {
   fn(req: WebRequest(params_in), ctx) {
     let path = req.partial_path
 
-    let is_wanted_method = case wanted_method {
-      http.Other("*") -> True
-      _ -> req.request.method == wanted_method
+    let call_handler = fn(params: params_out) {
+      let next_req = make_next_request(req, params, [])
+      Some(handler(next_req, ctx))
     }
+
+    case is_wanted_method(wanted_method, req) {
+      True ->
+        case spp.parse(path, route) {
+          Ok(spp.ExactMatch(params)) -> call_handler(params)
+          _ -> None
+        }
+      False -> None
+    }
+  }
+}
+
+pub fn match_dict(
+  route: String,
+  wanted_method: http.Method,
+  handler: EndPointHandler(ctx, #(params_in, params_out)),
+) {
+  fn(req: WebRequest(params_in), ctx) {
+    let path = req.partial_path
 
     let call_handler = fn(params: params_out) {
       let next_req = make_next_request(req, params, [])
       Some(handler(next_req, ctx))
     }
 
-    case is_wanted_method {
+    case is_wanted_method(wanted_method, req) {
       True ->
-        case pp.parse(path, route) {
-          Ok(pp.ExactMatch(params)) -> call_handler(params)
+        case dpp.parse(path, route) {
+          Ok(dpp.ExactMatch(params)) -> call_handler(params)
           _ -> None
         }
       False -> None
@@ -118,31 +145,38 @@ pub fn match(
 }
 
 pub fn get(
-  route: pp.Parser(params_out),
+  route: spp.Parser(params_out),
   handler: EndPointHandler(ctx, #(params_in, params_out)),
 ) -> Handler(ctx, params_in) {
-  match(route, http.Get, handler)
+  match_static(route, http.Get, handler)
 }
 
 pub fn post(
-  route: pp.Parser(params_out),
+  route: spp.Parser(params_out),
   handler: EndPointHandler(ctx, #(params_in, params_out)),
 ) -> Handler(ctx, params_in) {
-  match(route, http.Post, handler)
+  match_static(route, http.Post, handler)
 }
 
 pub fn delete(
-  route: pp.Parser(params_out),
+  route: spp.Parser(params_out),
   handler: EndPointHandler(ctx, #(params_in, params_out)),
 ) -> Handler(ctx, params_in) {
-  match(route, http.Delete, handler)
+  match_static(route, http.Delete, handler)
 }
 
 pub fn any(
-  route: pp.Parser(params_out),
+  route: spp.Parser(params_out),
   handler: EndPointHandler(ctx, #(params_in, params_out)),
 ) -> Handler(ctx, params_in) {
-  match(route, http.Other("*"), handler)
+  match_static(route, http.Other("*"), handler)
+}
+
+pub fn get_dict(
+  route: String,
+  handler: EndPointHandler(ctx, #(params_in, params_out)),
+) -> Handler(ctx, params_in) {
+  match_dict(route, http.Get, handler)
 }
 
 pub fn service(handler: Handler(context, #()), context context: context) {

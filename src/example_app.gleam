@@ -1,6 +1,6 @@
 import bliss.{Handler, WebRequest, WebResponse}
 import bliss/middleware
-import bliss/path_parser as pp
+import bliss/static_path_parser as spp
 import gleam/bit_builder.{BitBuilder}
 import gleam/http/elli
 import gleam/http/request.{Request}
@@ -104,6 +104,24 @@ fn language_delete(
   |> response.set_body(body)
 }
 
+fn country_show(
+  req: WebRequest(params),
+  ctx: ContextAuthenticated,
+) -> WebResponse {
+  let body = bit_builder.from_string("")
+  response.new(200)
+  |> response.set_body(body)
+}
+
+fn country_cities_list(
+  req: WebRequest(params),
+  ctx: ContextAuthenticated,
+) -> WebResponse {
+  let body = bit_builder.from_string("")
+  response.new(200)
+  |> response.set_body(body)
+}
+
 fn version(req: WebRequest(params), ctx: Context) -> WebResponse {
   let body = bit_builder.from_string("1.0.0")
   response.new(200)
@@ -121,30 +139,34 @@ pub fn app() {
   // The initial context can be any custom type defined by the application
   let initial_context = Context("db_url")
 
-  // Define application paths
-  // Using the path parser
+  // Define some application paths
+  // Using the static path parser
+  // This parser yields tuples with known types
+  // e.g. #(Int, String, Int) depending on how the parser is constructed
+  // This parser yields #()
   let path_version =
-    pp.get0()
-    |> pp.seg("version")
+    spp.get0()
+    |> spp.seg("version")
 
   let path_data =
-    pp.get0()
-    |> pp.seg("data")
+    spp.get0()
+    |> spp.seg("data")
 
-  let path_top = pp.get0()
+  let path_top = spp.get0()
 
   let path_languages =
-    pp.get0()
-    |> pp.seg("languages")
+    spp.get0()
+    |> spp.seg("languages")
 
+  // This parser yields #(Int)
   let path_language =
-    pp.get1()
-    |> pp.seg("languages")
-    |> pp.int
+    spp.get1()
+    |> spp.seg("languages")
+    |> spp.int
 
   let path_app =
-    pp.get0()
-    |> pp.seg("app")
+    spp.get0()
+    |> spp.seg("app")
 
   let public_api =
     bliss.route([
@@ -158,6 +180,10 @@ pub fn app() {
       bliss.get(path_top, home),
       bliss.get(path_languages, language_list),
       bliss.get(path_language, language_show),
+      // We can also match using a simple string parser
+      // This yield a dictionary for the parameters
+      bliss.get_dict("/countries/:id", country_show),
+      bliss.get_dict("/countries/:id/cities", country_cities_list),
       // Some routes can only be used by an admin
       bliss.route([bliss.delete(path_language, language_delete)])
       |> bliss.middleware(middleware_must_be_admin),
