@@ -42,34 +42,44 @@ pub fn route(handlers: List(Handler(ctx, params))) -> Handler(ctx, params) {
   }
 }
 
+fn make_next_request(
+  request_in: WebRequest(params_in),
+  params: params_out,
+  left_over_path: List(String),
+) -> WebRequest(#(params_in, params_out)) {
+  let next_path =
+    left_over_path
+    |> string.join("/")
+
+  let next_params = #(request_in.params, params)
+
+  WebRequest(
+    request: request_in.request,
+    partial_path: next_path,
+    params: next_params,
+  )
+}
+
 pub fn scope(
   route: pp.Parser(params_out),
-  handler: Handler(ctx, params_out),
+  handler: Handler(ctx, #(params_in, params_out)),
 ) -> Handler(ctx, params_in) {
   fn(req: WebRequest(params_in), ctx) {
     // We take the path from partial_path instead of request.path
     // Because ancestor scopes can consume part of the path
     // We only want to match on the left over path segments
-    let call_handler = fn(params: params_out, left_over: List(String)) {
-      let next_path =
-        left_over
-        |> string.join("/")
-      // TODO, we need to pass the upstream params
-      let next_req: WebRequest(params_out) =
-        WebRequest(
-          request: req.request,
-          partial_path: next_path,
-          params: params,
-        )
+    let call_next_handler = fn(params: params_out, left_over: List(String)) {
+      let next_req = make_next_request(req, params, left_over)
       handler(next_req, ctx)
     }
 
     let path = req.partial_path
     case pp.parse(path, route) {
       Ok(pp.ExactMatch(params)) ->
-        // The whole path has been consumed
-        call_handler(params, [])
-      Ok(pp.PartialMatch(params, left_over)) -> call_handler(params, left_over)
+        // The whole path has been consumed by the parser
+        call_next_handler(params, [])
+      Ok(pp.PartialMatch(params, left_over)) ->
+        call_next_handler(params, left_over)
       Error(_) -> {
         io.debug("Scope didn't match")
         None
@@ -81,7 +91,7 @@ pub fn scope(
 pub fn match(
   route: pp.Parser(params_out),
   wanted_method: http.Method,
-  handler: EndPointHandler(ctx, params_out),
+  handler: EndPointHandler(ctx, #(params_in, params_out)),
 ) -> Handler(ctx, params_in) {
   fn(req: WebRequest(params_in), ctx) {
     let path = req.partial_path
@@ -92,8 +102,7 @@ pub fn match(
     }
 
     let call_handler = fn(params: params_out) {
-      let next_req: WebRequest(params_out) =
-        WebRequest(request: req.request, partial_path: "", params: params)
+      let next_req = make_next_request(req, params, [])
       Some(handler(next_req, ctx))
     }
 
@@ -110,28 +119,28 @@ pub fn match(
 
 pub fn get(
   route: pp.Parser(params_out),
-  handler: EndPointHandler(ctx, params_out),
+  handler: EndPointHandler(ctx, #(params_in, params_out)),
 ) -> Handler(ctx, params_in) {
   match(route, http.Get, handler)
 }
 
 pub fn post(
   route: pp.Parser(params_out),
-  handler: EndPointHandler(ctx, params_out),
+  handler: EndPointHandler(ctx, #(params_in, params_out)),
 ) -> Handler(ctx, params_in) {
   match(route, http.Post, handler)
 }
 
 pub fn delete(
   route: pp.Parser(params_out),
-  handler: EndPointHandler(ctx, params_out),
+  handler: EndPointHandler(ctx, #(params_in, params_out)),
 ) -> Handler(ctx, params_in) {
   match(route, http.Delete, handler)
 }
 
 pub fn any(
   route: pp.Parser(params_out),
-  handler: EndPointHandler(ctx, params_out),
+  handler: EndPointHandler(ctx, #(params_in, params_out)),
 ) -> Handler(ctx, params_in) {
   match(route, http.Other("*"), handler)
 }
