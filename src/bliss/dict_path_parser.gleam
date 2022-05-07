@@ -1,6 +1,7 @@
 import gleam/list
 import gleam/map.{Map}
 import gleam/string
+import bliss/utils
 
 pub type Error {
   NotEnoughSegments
@@ -41,21 +42,13 @@ fn do_parse(acc, pattern_segments, path_segments) -> Result(Response, Error) {
   }
 }
 
-fn drop_empty_segments(segments) {
-  list.filter(segments, fn(seg) { !string.is_empty(seg) })
-}
-
 pub fn parse(
   pattern pattern: String,
   path path: String,
 ) -> Result(Response, Error) {
-  let pattern_segments =
-    string.split(pattern, "/")
-    |> drop_empty_segments
+  let pattern_segments = utils.segments(pattern)
 
-  let path_segments =
-    string.split(path, "/")
-    |> drop_empty_segments
+  let path_segments = utils.segments(path)
 
   do_parse(map.new(), pattern_segments, path_segments)
 }

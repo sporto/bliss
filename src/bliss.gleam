@@ -1,5 +1,6 @@
 import bliss/dict_path_parser as dpp
 import bliss/static_path_parser as spp
+import bliss/utils
 import gleam/bit_builder.{BitBuilder}
 import gleam/http
 import gleam/http/request

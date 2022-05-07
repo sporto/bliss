@@ -2,6 +2,7 @@ import gleam/int
 import gleam/string
 import gleam/result
 import gleam/list
+import bliss/utils
 
 type Segments =
   List(String)
@@ -46,10 +47,7 @@ fn map2(parser_a: Parser(a), parser_b: Parser(b), f: fn(a, b) -> c) -> Parser(c)
 }
 
 pub fn parse(input: String, parser: Parser(a)) -> Result(Response(a), Error) {
-  let segments =
-    input
-    |> string.split("/")
-    |> list.filter(fn(seg) { !string.is_empty(seg) })
+  let segments = utils.segments(input)
 
   try res = use_parser(parser, segments)
 
