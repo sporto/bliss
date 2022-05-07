@@ -1,6 +1,6 @@
 import gleeunit/should
 import bliss/dict_path_parser as parser
-import gleam/map.{Map}
+import gleam/map
 
 pub fn top_test() {
   let expected = Ok(parser.ExactMatch(map.from_list([])))

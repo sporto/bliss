@@ -1,11 +1,16 @@
 import bliss.{Handler, WebRequest, WebResponse}
 import bliss/middleware
 import bliss/static_path_parser as spp
+import example/store
 import gleam/bit_builder.{BitBuilder}
 import gleam/http/elli
 import gleam/http/request.{Request}
 import gleam/http/response.{Response}
+import gleam/io
+import gleam/json
+import gleam/list
 import gleam/option.{None, Option, Some}
+import gleam/result
 
 type Context {
   Context(db: String)
@@ -36,19 +41,13 @@ fn middleware_authenticate(
   req: WebRequest(params),
   ctx: Context,
   handler,
-) -> Option(WebResponse) {
+) -> WebResponse {
   case authenticate(req, ctx) {
     Ok(user) -> {
       let context_authenticated = ContextAuthenticated(db: ctx.db, user: user)
       handler(req, context_authenticated)
     }
-    Error(_) -> {
-      // Return unauthorised
-      let resp =
-        response.new(401)
-        |> response.set_body(bit_builder.from_string(""))
-      Some(resp)
-    }
+    Error(_) -> Error(bliss.ResponseErrorUnauthorised)
   }
 }
 
@@ -57,82 +56,110 @@ fn middleware_must_be_admin(
   ctx: ContextAuthenticated,
   handler,
 ) {
+  // io.debug("middleware_must_be_admin")
   // Check that the user is admin
   let is_admin = ctx.user.role == "admin"
   case is_admin {
     True -> handler(req, ctx)
-    False -> {
-      let resp =
-        response.new(401)
-        |> response.set_body(bit_builder.from_string(""))
-      Some(resp)
-    }
+    False -> Error(bliss.ResponseErrorUnauthorised)
   }
 }
 
+// Serialisers
+fn json_of_language(language: store.Language) {
+  json.object([
+    #("code", json.string(language.code)),
+    #("name", json.string(language.name)),
+  ])
+}
+
 // End points
-fn home(req: WebRequest(params), ctx: ContextAuthenticated) -> WebResponse {
-  let body = bit_builder.from_string("")
-  response.new(200)
-  |> response.set_body(body)
+fn public_home(req: WebRequest(params), ctx: Context) -> WebResponse {
+  let body = bit_builder.from_string("Home")
+  let resp =
+    response.new(200)
+    |> response.set_body(body)
+
+  Ok(resp)
 }
 
-fn language_list(
-  req: WebRequest(params),
-  ctx: ContextAuthenticated,
+fn handler_language_list(
+  _req: WebRequest(params),
+  _ctx: ContextAuthenticated,
 ) -> WebResponse {
-  let body = bit_builder.from_string("")
-  response.new(200)
-  |> response.set_body(body)
+  let data =
+    store.languages()
+    |> json.array(of: json_of_language)
+
+  Ok(bliss.json_response(data))
 }
 
-fn language_show(
-  req: WebRequest(params),
-  ctx: ContextAuthenticated,
+fn handler_language_show(
+  req: WebRequest(#(a, #(String))),
+  _ctx: ContextAuthenticated,
 ) -> WebResponse {
-  let body = bit_builder.from_string("")
-  response.new(200)
-  |> response.set_body(body)
+  let params = req.params
+
+  let #(_, #(code)) = params
+
+  try language =
+    store.languages()
+    |> list.find(fn(lang) { lang.code == code })
+    |> result.replace_error(bliss.ResponseErrorNotFound)
+
+  let data = json_of_language(language)
+
+  Ok(bliss.json_response(data))
 }
 
 fn language_delete(
-  req: WebRequest(params),
-  ctx: ContextAuthenticated,
+  _req: WebRequest(params),
+  _ctx: ContextAuthenticated,
 ) -> WebResponse {
   let body = bit_builder.from_string("")
-  response.new(200)
-  |> response.set_body(body)
+  let resp =
+    response.new(200)
+    |> response.set_body(body)
+  Ok(resp)
 }
 
 fn country_show(
-  req: WebRequest(params),
-  ctx: ContextAuthenticated,
+  _req: WebRequest(params),
+  _ctx: ContextAuthenticated,
 ) -> WebResponse {
   let body = bit_builder.from_string("")
-  response.new(200)
-  |> response.set_body(body)
+  let resp =
+    response.new(200)
+    |> response.set_body(body)
+  Ok(resp)
 }
 
 fn country_cities_list(
-  req: WebRequest(params),
-  ctx: ContextAuthenticated,
+  _req: WebRequest(params),
+  _ctx: ContextAuthenticated,
 ) -> WebResponse {
   let body = bit_builder.from_string("")
-  response.new(200)
-  |> response.set_body(body)
+  let resp =
+    response.new(200)
+    |> response.set_body(body)
+  Ok(resp)
 }
 
-fn version(req: WebRequest(params), ctx: Context) -> WebResponse {
+fn public_version(req: WebRequest(params), ctx: Context) -> WebResponse {
   let body = bit_builder.from_string("1.0.0")
-  response.new(200)
-  |> response.set_body(body)
+  let resp =
+    response.new(200)
+    |> response.set_body(body)
+  Ok(resp)
 }
 
-fn public_data(req: WebRequest(params), ctx: Context) -> WebResponse {
-  let body = bit_builder.from_string("{\"message\":\"Hello World\"}")
-  response.new(200)
-  |> response.set_body(body)
-  |> response.prepend_header("content-type", "application/json")
+fn public_status(req: WebRequest(params), ctx: Context) -> WebResponse {
+  let data =
+    json.object([
+      #("message", json.string("Operational")),
+      #("incidents", json.array([], of: json.string)),
+    ])
+  Ok(bliss.json_response(data))
 }
 
 pub fn app() {
@@ -148,9 +175,9 @@ pub fn app() {
     spp.yield0()
     |> spp.seg("version")
 
-  let path_data =
+  let path_status =
     spp.yield0()
-    |> spp.seg("data")
+    |> spp.seg("status")
 
   let path_top = spp.yield0()
 
@@ -162,31 +189,34 @@ pub fn app() {
   let path_language =
     spp.yield1()
     |> spp.seg("languages")
-    |> spp.int
+    |> spp.str
 
-  let path_app =
+  let path_api =
     spp.yield0()
-    |> spp.seg("app")
+    |> spp.seg("api")
 
   let public_api =
     bliss.route([
-      bliss.get(path_version, version),
-      bliss.get(path_data, public_data),
+      bliss.get(path_top, public_home),
+      bliss.get(path_version, public_version),
+      bliss.get(path_status, public_status),
     ])
     |> bliss.middleware(middleware.cors("*"))
 
   let app_api =
     bliss.route([
-      bliss.get(path_top, home),
-      bliss.get(path_languages, language_list),
-      bliss.get(path_language, language_show),
+      bliss.get(path_languages, handler_language_list),
+      bliss.get(path_language, handler_language_show),
       // We can also match using a simple string parser
       // This yield a dictionary for the parameters
       bliss.get_dict("/countries/:id", country_show),
       bliss.get_dict("/countries/:id/cities", country_cities_list),
       // Some routes can only be used by an admin
-      bliss.route([bliss.delete(path_language, language_delete)])
-      |> bliss.middleware(middleware_must_be_admin),
+      bliss.delete(
+        path_language,
+        language_delete
+        |> bliss.middleware(middleware_must_be_admin),
+      ),
     ])
     // Add middlewares
     // The middlewares at the bottom of the pipeline are executed first
@@ -200,11 +230,10 @@ pub fn app() {
 
   bliss.route([
     bliss.scope(path_top, public_api),
-    bliss.scope(path_app, app_api),
+    bliss.scope(path_api, app_api),
   ])
   // Add middleware to track accesss
   |> bliss.middleware(middleware_track)
-  // Start the server
   |> bliss.service(initial_context)
 }
 

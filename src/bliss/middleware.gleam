@@ -1,5 +1,6 @@
 import bliss.{Handler, WebRequest, WebResponse}
 import gleam/option.{Some}
+import gleam/result
 import gleam/http
 import gleam/http/request.{Request}
 import gleam/http/response
@@ -32,12 +33,12 @@ pub fn cors(origin: String) {
         let resp =
           response.new(202)
           |> response.set_body(bit_builder.from_string(""))
-        Some(resp)
+        Ok(resp)
       }
       _ -> handler(req, ctx)
     }
 
     resp
-    |> option.map(add_cors_headers(_, origin))
+    |> result.map(add_cors_headers(_, origin))
   }
 }
