@@ -13,40 +13,42 @@ import gleam/json
 
 pub const header_content_type = "Content-Type"
 
-pub type WebRequest(p) {
+pub type Params =
+  Map(String, String)
+
+pub type WebRequest {
   WebRequest(
     request: request.Request(BitString),
     partial_path: String,
-    params: p,
+    params: Params,
   )
 }
 
 pub type ResponseError {
-  ResponseErrorUnmatched
-  ResponseErrorNotFound
-  ResponseErrorUnauthorised
+  Unmatched
+  NotFound
+  Unauthorised
 }
 
 pub type WebResponse =
   Result(Response(BitBuilder), ResponseError)
 
 // A handler is a function that takes a request, context and returns a response
-pub type Handler(ctx, params) =
-  fn(WebRequest(params), ctx) -> WebResponse
+pub type Handler(ctx) =
+  fn(WebRequest, ctx) -> WebResponse
 
-pub type Middleware(ctx_in, ctx_out, params_in, params_out) =
-  fn(Handler(ctx_out, params_out)) -> Handler(ctx_in, params_in)
+pub type Middleware(ctx_in, ctx_out) =
+  fn(Handler(ctx_out)) -> Handler(ctx_in)
 
-pub fn route(handlers: List(Handler(ctx, params))) -> Handler(ctx, params) {
+pub fn one_of(handlers: List(Handler(ctx))) -> Handler(ctx) {
   // Call each handler, return if successful
-  fn(req: WebRequest(params), cxt: ctx) {
+  fn(req: WebRequest, cxt: ctx) {
     list.fold_until(
       handlers,
-      Error(ResponseErrorUnmatched),
+      Error(Unmatched),
       fn(acc, handler) {
         case handler(req, cxt) {
-          Error(ResponseErrorUnmatched) ->
-            list.Continue(Error(ResponseErrorUnmatched))
+          Error(Unmatched) -> list.Continue(Error(Unmatched))
           Error(err) -> list.Stop(Error(err))
           Ok(resp) -> list.Stop(Ok(resp))
         }
@@ -56,15 +58,15 @@ pub fn route(handlers: List(Handler(ctx, params))) -> Handler(ctx, params) {
 }
 
 fn make_next_request(
-  request_in: WebRequest(params_in),
-  params: params_out,
+  request_in: WebRequest,
+  additional_params: Params,
   left_over_path: List(String),
-) -> WebRequest(#(params_in, params_out)) {
+) -> WebRequest {
   let next_path =
     left_over_path
     |> string.join("/")
 
-  let next_params = #(request_in.params, params)
+  let next_params = map.merge(into: request_in.params, from: additional_params)
 
   WebRequest(
     request: request_in.request,
@@ -73,71 +75,41 @@ fn make_next_request(
   )
 }
 
-pub fn scope(
-  route: spp.Parser(params_out),
-  handler: Handler(ctx, #(params_in, params_out)),
-) -> Handler(ctx, params_in) {
-  fn(req: WebRequest(params_in), ctx) {
+pub fn scope(pattern: String, handler: Handler(ctx)) -> Handler(ctx) {
+  fn(req: WebRequest, ctx) {
     // We take the path from partial_path instead of request.path
     // Because ancestor scopes can consume part of the path
     // We only want to match on the left over path segments
-    let call_next_handler = fn(params: params_out, left_over: List(String)) {
+    let call_next_handler = fn(params: Params, left_over: List(String)) {
       let next_req = make_next_request(req, params, left_over)
       handler(next_req, ctx)
     }
 
     let path = req.partial_path
-    case spp.parse(path, route) {
-      Ok(spp.ExactMatch(params)) ->
+
+    case dpp.parse(pattern: pattern, path: path) {
+      Ok(dpp.ExactMatch(params)) ->
         // The whole path has been consumed by the parser
         call_next_handler(params, [])
-      Ok(spp.PartialMatch(params, left_over)) ->
+      Ok(dpp.PartialMatch(params, left_over)) ->
         call_next_handler(params, left_over)
       Error(_) -> {
         io.debug("Scope didn't match")
-        Error(ResponseErrorUnmatched)
+        Error(Unmatched)
       }
     }
   }
 }
 
-fn is_wanted_method(wanted_method: http.Method, req: WebRequest(p)) {
+fn is_wanted_method(wanted_method: http.Method, req: WebRequest) {
   case wanted_method {
     http.Other("*") -> True
     _ -> req.request.method == wanted_method
   }
 }
 
-pub fn match_static(
-  route: spp.Parser(params_out),
-  wanted_method: http.Method,
-  handler: Handler(ctx, #(params_in, params_out)),
-) -> Handler(ctx, params_in) {
-  fn(req: WebRequest(params_in), ctx) {
-    let path = req.partial_path
-
-    let call_handler = fn(params: params_out) {
-      let next_req = make_next_request(req, params, [])
-      handler(next_req, ctx)
-    }
-
-    case is_wanted_method(wanted_method, req) {
-      True ->
-        case spp.parse(path, route) {
-          Ok(spp.ExactMatch(params)) -> call_handler(params)
-          _ -> Error(ResponseErrorUnmatched)
-        }
-      False -> Error(ResponseErrorUnmatched)
-    }
-  }
-}
-
-pub fn match_dict(
-  route: String,
-  wanted_method: http.Method,
-  handler: Handler(ctx, #(params_in, Map(String, String))),
-) {
-  fn(req: WebRequest(params_in), ctx) {
+pub fn match(pattern: String, wanted_method: http.Method, handler: Handler(ctx)) {
+  fn(req: WebRequest, ctx) {
     let path = req.partial_path
 
     let call_handler = fn(params: Map(String, String)) {
@@ -145,50 +117,33 @@ pub fn match_dict(
       handler(next_req, ctx)
     }
 
-    case is_wanted_method(wanted_method, req) {
+    let is_wanted = is_wanted_method(wanted_method, req)
+
+    case is_wanted {
       True ->
-        case dpp.parse(pattern: route, path: path) {
+        case dpp.parse(pattern: pattern, path: path) {
           Ok(dpp.ExactMatch(params)) -> call_handler(params)
-          _ -> Error(ResponseErrorUnmatched)
+          _ -> Error(Unmatched)
         }
-      False -> Error(ResponseErrorUnmatched)
+      False -> Error(Unmatched)
     }
   }
 }
 
-pub fn get(
-  route: spp.Parser(params_out),
-  handler: Handler(ctx, #(params_in, params_out)),
-) -> Handler(ctx, params_in) {
-  match_static(route, http.Get, handler)
+pub fn get(pattern: String, handler: Handler(ctx)) -> Handler(ctx) {
+  match(pattern, http.Get, handler)
 }
 
-pub fn post(
-  route: spp.Parser(params_out),
-  handler: Handler(ctx, #(params_in, params_out)),
-) -> Handler(ctx, params_in) {
-  match_static(route, http.Post, handler)
+pub fn post(pattern: String, handler: Handler(ctx)) -> Handler(ctx) {
+  match(pattern, http.Post, handler)
 }
 
-pub fn delete(
-  route: spp.Parser(params_out),
-  handler: Handler(ctx, #(params_in, params_out)),
-) -> Handler(ctx, params_in) {
-  match_static(route, http.Delete, handler)
+pub fn delete(pattern: String, handler: Handler(ctx)) -> Handler(ctx) {
+  match(pattern, http.Delete, handler)
 }
 
-pub fn any(
-  route: spp.Parser(params_out),
-  handler: Handler(ctx, #(params_in, params_out)),
-) -> Handler(ctx, params_in) {
-  match_static(route, http.Other("*"), handler)
-}
-
-pub fn get_dict(
-  route: String,
-  handler: Handler(ctx, #(params_in, Map(String, String))),
-) -> Handler(ctx, params_in) {
-  match_dict(route, http.Get, handler)
+pub fn any(pattern: String, handler: Handler(ctx)) -> Handler(ctx) {
+  match(pattern, http.Other("*"), handler)
 }
 
 pub fn json_response(data: json.Json) -> Response(BitBuilder) {
@@ -216,16 +171,18 @@ fn response_unauthorised() {
 
 fn response_for_error(error: ResponseError) {
   case error {
-    ResponseErrorNotFound -> response_not_found()
-    ResponseErrorUnauthorised -> response_unauthorised()
-    ResponseErrorUnmatched -> response_not_found()
+    NotFound -> response_not_found()
+    Unauthorised -> response_unauthorised()
+    Unmatched -> response_not_found()
   }
 }
 
-pub fn service(handler: Handler(context, #()), context context: context) {
+pub fn service(handler: Handler(context), context context: context) {
   fn(request: request.Request(BitString)) {
-    let web_request: WebRequest(#()) =
-      WebRequest(request: request, partial_path: request.path, params: #())
+    let params = map.new()
+
+    let web_request: WebRequest =
+      WebRequest(request: request, partial_path: request.path, params: params)
 
     case handler(web_request, context) {
       Ok(resp) -> resp

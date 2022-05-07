@@ -3,27 +3,13 @@ import gleam/hackney
 import gleam/bit_string
 import gleam/bit_builder
 import gleam/json
-import gleam/http.{Get, Head, Options, Post}
+import gleam/http
 import gleam/http/elli
 import gleam/http/request
 import gleam/http/response
-import gleeunit
 import gleeunit/should
 
-pub fn main() {
-  gleeunit.main()
-}
-
-// fn service(request: Request(BitString)) -> Response(BitBuilder) {
-//   let body = case request.body {
-//     <<>> -> bit_builder.from_string("Default body")
-//     x -> bit_builder.from_bit_string(x)
-//   }
-//   response.new(200)
-//   |> response.prepend_header("made-with", "Gleam")
-//   |> response.set_body(body)
-// }
-// pub fn get_version_test() {
+// pub fn server_test() {
 //   let port = 3078
 //   assert Ok(_) = elli.start(app.app(), on_port: port)
 //   let req =
@@ -31,14 +17,14 @@ pub fn main() {
 //     |> request.set_scheme(http.Http)
 //     |> request.set_host("0.0.0.0")
 //     |> request.set_port(port)
-//     |> request.set_method(Get)
+//     |> request.set_method(http.Get)
 //     |> request.set_path("/version")
 //   assert Ok(resp) = hackney.send(req)
 //   assert 200 = resp.status
 // }
 fn new_req() {
   request.new()
-  |> request.set_method(Get)
+  |> request.set_method(http.Get)
   |> request.set_body(bit_string.from_string(""))
 }
 
@@ -86,7 +72,7 @@ pub fn cors_for_public_test() {
   let req =
     new_req()
     |> request.set_path("/version")
-    |> request.set_method(Options)
+    |> request.set_method(http.Options)
 
   let resp = run(req)
 
@@ -124,17 +110,32 @@ pub fn status_returns_json_test() {
   |> should.equal(body)
 }
 
+fn add_authorisation(req) {
+  req
+  |> request.prepend_header("Authorization", "Bearer 123")
+}
+
 pub fn api_not_found_test() {
   let req =
     new_req()
+    |> add_authorisation
     |> request.set_path("/api/whatever")
 
   assert 404 = run(req).status
 }
 
+pub fn api_unauthorised_test() {
+  let req =
+    new_req()
+    |> request.set_path("/api/languages")
+
+  assert 401 = run(req).status
+}
+
 pub fn api_languages_test() {
   let req =
     new_req()
+    |> add_authorisation
     |> request.set_path("/api/languages")
 
   let resp = run(req)
@@ -150,6 +151,7 @@ pub fn api_languages_test() {
 pub fn api_language_test() {
   let req =
     new_req()
+    |> add_authorisation
     |> request.set_path("/api/languages/es")
 
   let resp = run(req)
@@ -167,9 +169,67 @@ pub fn api_language_test() {
 pub fn api_language_not_found_test() {
   let req =
     new_req()
+    |> add_authorisation
     |> request.set_path("/api/languages/xx")
 
   let resp = run(req)
 
   assert 404 = resp.status
+}
+
+pub fn api_countries_test() {
+  let req =
+    new_req()
+    |> add_authorisation
+    |> request.set_path("/api/countries")
+
+  let resp = run(req)
+
+  let body =
+    "[{\"code\":\"au\",\"name\":\"Australia\"},{\"code\":\"ar\",\"name\":\"Argentina\"}]"
+    |> bit_builder.from_string
+
+  resp.body
+  |> should.equal(body)
+}
+
+pub fn api_country_cities_test() {
+  let req =
+    new_req()
+    |> add_authorisation
+    |> request.set_path("/api/countries/au/cities")
+
+  let resp = run(req)
+
+  let body =
+    "[{\"name\":\"Melbourne\"},{\"name\":\"Sydney\"}]"
+    |> bit_builder.from_string
+
+  resp.body
+  |> should.equal(body)
+}
+
+pub fn api_admin_can_delete_test() {
+  let req =
+    new_req()
+    |> add_authorisation
+    |> request.prepend_header("User-Role", "admin")
+    |> request.set_path("/api/countries/au")
+    |> request.set_method(http.Delete)
+
+  let resp = run(req)
+
+  assert 200 = resp.status
+}
+
+pub fn api_user_cannot_delete_test() {
+  let req =
+    new_req()
+    |> add_authorisation
+    |> request.set_path("/api/countries/au")
+    |> request.set_method(http.Delete)
+
+  let resp = run(req)
+
+  assert 401 = resp.status
 }
