@@ -6,6 +6,7 @@ import gleam/http/request
 import gleam/http/response.{Response}
 import gleam/io
 import gleam/list
+import gleam/map.{Map}
 import gleam/option.{None, Option, Some}
 import gleam/string
 
@@ -123,19 +124,19 @@ pub fn match_static(
 pub fn match_dict(
   route: String,
   wanted_method: http.Method,
-  handler: EndPointHandler(ctx, #(params_in, params_out)),
+  handler: EndPointHandler(ctx, #(params_in, Map(String, String))),
 ) {
   fn(req: WebRequest(params_in), ctx) {
     let path = req.partial_path
 
-    let call_handler = fn(params: params_out) {
+    let call_handler = fn(params: Map(String, String)) {
       let next_req = make_next_request(req, params, [])
       Some(handler(next_req, ctx))
     }
 
     case is_wanted_method(wanted_method, req) {
       True ->
-        case dpp.parse(path, route) {
+        case dpp.parse(pattern: route, path: path) {
           Ok(dpp.ExactMatch(params)) -> call_handler(params)
           _ -> None
         }
@@ -174,7 +175,7 @@ pub fn any(
 
 pub fn get_dict(
   route: String,
-  handler: EndPointHandler(ctx, #(params_in, params_out)),
+  handler: EndPointHandler(ctx, #(params_in, Map(String, String))),
 ) -> Handler(ctx, params_in) {
   match_dict(route, http.Get, handler)
 }

@@ -145,27 +145,27 @@ pub fn app() {
   // e.g. #(Int, String, Int) depending on how the parser is constructed
   // This parser yields #()
   let path_version =
-    spp.get0()
+    spp.yield0()
     |> spp.seg("version")
 
   let path_data =
-    spp.get0()
+    spp.yield0()
     |> spp.seg("data")
 
-  let path_top = spp.get0()
+  let path_top = spp.yield0()
 
   let path_languages =
-    spp.get0()
+    spp.yield0()
     |> spp.seg("languages")
 
   // This parser yields #(Int)
   let path_language =
-    spp.get1()
+    spp.yield1()
     |> spp.seg("languages")
     |> spp.int
 
   let path_app =
-    spp.get0()
+    spp.yield0()
     |> spp.seg("app")
 
   let public_api =

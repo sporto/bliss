@@ -3,7 +3,7 @@ import gleeunit/should
 import bliss/static_path_parser as spp
 
 pub fn top_test() {
-  let parser = spp.get0()
+  let parser = spp.yield0()
 
   let expected = Ok(spp.ExactMatch(#()))
 
@@ -12,7 +12,7 @@ pub fn top_test() {
 }
 
 pub fn more_segments_test() {
-  let parser = spp.get0()
+  let parser = spp.yield0()
 
   let expected = Ok(spp.PartialMatch(#(), ["users"]))
 
@@ -22,7 +22,7 @@ pub fn more_segments_test() {
 
 pub fn one_segment_test() {
   let parser =
-    spp.get0()
+    spp.yield0()
     |> spp.seg("users")
 
   let expected = Ok(spp.ExactMatch(#()))
@@ -33,7 +33,7 @@ pub fn one_segment_test() {
 
 pub fn just_segments_test() {
   let parser =
-    spp.get0()
+    spp.yield0()
     |> spp.seg("users")
     |> spp.seg("active")
 
@@ -43,9 +43,9 @@ pub fn just_segments_test() {
   |> should.equal(expected)
 }
 
-pub fn get1_test() {
+pub fn yield1_test() {
   let parser =
-    spp.get1()
+    spp.yield1()
     |> spp.seg("users")
     |> spp.int
 
@@ -56,9 +56,9 @@ pub fn get1_test() {
   |> should.equal(expected)
 }
 
-pub fn get2_test() {
+pub fn yield2_test() {
   let parser =
-    spp.get2()
+    spp.yield2()
     |> spp.seg("users")
     |> spp.int
     |> spp.seg("hobbies")
@@ -71,9 +71,9 @@ pub fn get2_test() {
   |> should.equal(expected)
 }
 
-pub fn get3_test() {
+pub fn yield3_test() {
   let parser =
-    spp.get3()
+    spp.yield3()
     |> spp.seg("blog")
     |> spp.int
     |> spp.int

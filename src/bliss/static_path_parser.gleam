@@ -86,19 +86,19 @@ fn initial(constructor: cons) -> Parser(cons) {
   Parser(p)
 }
 
-pub fn get0() -> Parser(#()) {
+pub fn yield0() -> Parser(#()) {
   initial(#())
 }
 
-pub fn get1() -> Parser(fn(a) -> #(a)) {
+pub fn yield1() -> Parser(fn(a) -> #(a)) {
   initial(tuple1)
 }
 
-pub fn get2() -> Parser(fn(a) -> fn(b) -> #(a, b)) {
+pub fn yield2() -> Parser(fn(a) -> fn(b) -> #(a, b)) {
   initial(tuple2)
 }
 
-pub fn get3() -> Parser(fn(a) -> fn(b) -> fn(c) -> #(a, b, c)) {
+pub fn yield3() -> Parser(fn(a) -> fn(b) -> fn(c) -> #(a, b, c)) {
   initial(tuple3)
 }
 
