@@ -1,7 +1,6 @@
 import gleam/int
 import gleam/string
 import gleam/result
-import gleam/list
 import bliss/utils
 
 type Segments =

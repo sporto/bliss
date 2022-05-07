@@ -1,16 +1,13 @@
-import bliss.{Handler, WebRequest, WebResponse}
+import bliss.{WebRequest, WebResponse}
 import bliss/middleware
-import bliss/static_path_parser as spp
 import example/store
-import gleam/bit_builder.{BitBuilder}
+import gleam/bit_builder
 import gleam/http/elli
-import gleam/http/request.{Request}
-import gleam/http/response.{Response}
-import gleam/io
+import gleam/http/request
+import gleam/http/response
 import gleam/json
 import gleam/list
 import gleam/map
-import gleam/option.{None, Option, Some}
 import gleam/result
 
 type Context {
@@ -39,7 +36,7 @@ fn check_token(token) {
   }
 }
 
-fn authenticate(req: WebRequest, ctx: Context) -> Result(User, Nil) {
+fn authenticate(req: WebRequest, _ctx: Context) -> Result(User, Nil) {
   // This would check using the cookie and the DB
   // But for the example just use a header
   try token = request.get_header(req.request, "Authorization")
@@ -100,7 +97,7 @@ fn json_of_city(city: store.City) {
 }
 
 // End points
-fn public_home(req: WebRequest, ctx: Context) -> WebResponse {
+fn public_home(_req: WebRequest, _ctx: Context) -> WebResponse {
   let body = bit_builder.from_string("Home")
   let resp =
     response.new(200)

@@ -1,6 +1,4 @@
 import bliss/dict_path_parser as dpp
-import bliss/static_path_parser as spp
-import bliss/utils
 import gleam/bit_builder.{BitBuilder}
 import gleam/http
 import gleam/http/request
@@ -8,7 +6,6 @@ import gleam/http/response.{Response}
 import gleam/io
 import gleam/list
 import gleam/map.{Map}
-import gleam/option.{None, Option, Some}
 import gleam/string
 import gleam/json
 
@@ -47,7 +44,7 @@ pub fn one_of(handlers: List(Handler(ctx))) -> Handler(ctx) {
     list.fold_until(
       handlers,
       Error(Unmatched),
-      fn(acc, handler) {
+      fn(_acc, handler) {
         case handler(req, cxt) {
           Error(Unmatched) -> list.Continue(Error(Unmatched))
           Error(err) -> list.Stop(Error(err))
@@ -95,7 +92,6 @@ pub fn scope(pattern: String, handler: Handler(ctx)) -> Handler(ctx) {
       Ok(dpp.PartialMatch(params, left_over)) ->
         call_next_handler(params, left_over)
       Error(_) -> {
-        io.debug("Scope didn't match")
         Error(Unmatched)
       }
     }

@@ -1,8 +1,6 @@
-import bliss.{Handler, WebRequest, WebResponse}
-import gleam/option.{Some}
+import bliss.{WebRequest}
 import gleam/result
 import gleam/http
-import gleam/http/request.{Request}
 import gleam/http/response
 import gleam/bit_builder
 

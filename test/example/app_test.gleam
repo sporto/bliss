@@ -1,10 +1,10 @@
 import example/app as app
-import gleam/hackney
+// import gleam/hackney
 import gleam/bit_string
 import gleam/bit_builder
 import gleam/json
 import gleam/http
-import gleam/http/elli
+// import gleam/http/elli
 import gleam/http/request
 import gleam/http/response
 import gleeunit/should
