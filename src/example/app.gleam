@@ -24,9 +24,11 @@ type User {
   User(email: String, role: String)
 }
 
-fn middleware_track(req: WebRequest(params), ctx: Context, handler) {
-  // Track access to the app
-  handler(req, ctx)
+fn middleware_track(handler) {
+  fn(req: WebRequest(params), ctx: Context) {
+    // Track access to the app
+    handler(req, ctx)
+  }
 }
 
 fn authenticate(req: WebRequest(params), ctx: Context) -> Result(User, String) {
@@ -37,31 +39,27 @@ fn authenticate(req: WebRequest(params), ctx: Context) -> Result(User, String) {
   Ok(user)
 }
 
-fn middleware_authenticate(
-  req: WebRequest(params),
-  ctx: Context,
-  handler,
-) -> WebResponse {
-  case authenticate(req, ctx) {
-    Ok(user) -> {
-      let context_authenticated = ContextAuthenticated(db: ctx.db, user: user)
-      handler(req, context_authenticated)
+fn middleware_authenticate(handler) {
+  fn(req: WebRequest(params), ctx: Context) -> WebResponse {
+    case authenticate(req, ctx) {
+      Ok(user) -> {
+        let context_authenticated = ContextAuthenticated(db: ctx.db, user: user)
+        handler(req, context_authenticated)
+      }
+      Error(_) -> Error(bliss.ResponseErrorUnauthorised)
     }
-    Error(_) -> Error(bliss.ResponseErrorUnauthorised)
   }
 }
 
-fn middleware_must_be_admin(
-  req: WebRequest(params),
-  ctx: ContextAuthenticated,
-  handler,
-) {
-  // io.debug("middleware_must_be_admin")
-  // Check that the user is admin
-  let is_admin = ctx.user.role == "admin"
-  case is_admin {
-    True -> handler(req, ctx)
-    False -> Error(bliss.ResponseErrorUnauthorised)
+fn middleware_must_be_admin(handler) {
+  fn(req: WebRequest(params), ctx: ContextAuthenticated) -> WebResponse {
+    // io.debug("middleware_must_be_admin")
+    // Check that the user is admin
+    let is_admin = ctx.user.role == "admin"
+    case is_admin {
+      True -> handler(req, ctx)
+      False -> Error(bliss.ResponseErrorUnauthorised)
+    }
   }
 }
 
@@ -201,7 +199,7 @@ pub fn app() {
       bliss.get(path_version, public_version),
       bliss.get(path_status, public_status),
     ])
-    |> bliss.middleware(middleware.cors("*"))
+    |> middleware.cors("*")
 
   let app_api =
     bliss.route([
@@ -215,7 +213,7 @@ pub fn app() {
       bliss.delete(
         path_language,
         language_delete
-        |> bliss.middleware(middleware_must_be_admin),
+        |> middleware_must_be_admin,
       ),
     ])
     // Add middlewares
@@ -224,16 +222,16 @@ pub fn app() {
     // and the response in the way out
     //
     // Handle CORS
-    |> bliss.middleware(middleware.cors("https://app.com"))
+    |> middleware.cors("https://app.com")
     // Must be authenticated in order to access any app endpoint
-    |> bliss.middleware(middleware_authenticate)
+    |> middleware_authenticate
 
   bliss.route([
     bliss.scope(path_top, public_api),
     bliss.scope(path_api, app_api),
   ])
   // Add middleware to track accesss
-  |> bliss.middleware(middleware_track)
+  |> middleware_track
   |> bliss.service(initial_context)
 }
 

@@ -34,6 +34,9 @@ pub type WebResponse =
 pub type Handler(ctx, params) =
   fn(WebRequest(params), ctx) -> WebResponse
 
+pub type Middleware(ctx_in, ctx_out, params_in, params_out) =
+  fn(Handler(ctx_out, params_out)) -> Handler(ctx_in, params_in)
+
 pub fn route(handlers: List(Handler(ctx, params))) -> Handler(ctx, params) {
   // Call each handler, return if successful
   fn(req: WebRequest(params), cxt: ctx) {
@@ -230,18 +233,3 @@ pub fn service(handler: Handler(context, #()), context context: context) {
     }
   }
 }
-
-pub type Middleware(ctx_in, ctx_out, params_in, params_out) =
-  fn(WebRequest(params_in), ctx_in, Handler(ctx_out, params_out)) -> WebResponse
-
-pub fn middleware(
-  middleware_handler: Middleware(ctx_in, ctx_out, params_in, params_out),
-) -> fn(Handler(ctx_out, params_out)) -> Handler(ctx_in, params_in) {
-  fn(handler: Handler(ctx_out, params_out)) {
-    fn(req: WebRequest(params_in), ctx: ctx_in) {
-      middleware_handler(req, ctx, handler)
-    }
-  }
-}
-// a middleware could be a partial applied function
-// middleware(handle)(req, ctx)
