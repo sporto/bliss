@@ -16,9 +16,9 @@ pub type Params =
 
 pub type WebRequest {
   WebRequest(
-    request: request.Request(BitString),
-    partial_path: String,
     params: Params,
+    request: request.Request(BitString),
+    unused_path: List(String),
   )
 }
 
@@ -58,17 +58,13 @@ pub fn one_of(handlers: List(Handler(ctx))) -> Handler(ctx) {
 fn make_next_request(
   request_in: WebRequest,
   additional_params: Params,
-  left_over_path: List(String),
+  unused_path: List(String),
 ) -> WebRequest {
-  let next_path =
-    left_over_path
-    |> string.join("/")
-
   let next_params = map.merge(into: request_in.params, from: additional_params)
 
   WebRequest(
     request: request_in.request,
-    partial_path: next_path,
+    unused_path: unused_path,
     params: next_params,
   )
 }
@@ -83,7 +79,9 @@ pub fn scope(pattern: String, handler: Handler(ctx)) -> Handler(ctx) {
       handler(next_req, ctx)
     }
 
-    let path = req.partial_path
+    let path =
+      req.unused_path
+      |> string.join("/")
 
     case dpp.parse(pattern: pattern, path: path) {
       Ok(dpp.ExactMatch(params)) ->
@@ -107,8 +105,7 @@ pub fn using_pattern_matching(
   matcher: fn(List(String), WebRequest, ctx) -> Handler(ctx),
 ) -> Handler(ctx) {
   fn(req: WebRequest, ctx) {
-    let path = utils.segments(req.partial_path)
-    let handler = matcher(path, req, ctx)
+    let handler = matcher(req.unused_path, req, ctx)
     handler(req, ctx)
   }
 }
@@ -133,7 +130,9 @@ pub fn match(
   handler: Handler(ctx),
 ) -> Handler(ctx) {
   fn(req: WebRequest, ctx) {
-    let path = req.partial_path
+    let path =
+      req.unused_path
+      |> string.join("/")
 
     let call_handler = fn(params: Map(String, String)) {
       let next_req = make_next_request(req, params, [])
@@ -208,9 +207,10 @@ fn response_for_error(error: ResponseError) {
 pub fn service(handler: Handler(context), context context: context) {
   fn(request: request.Request(BitString)) {
     let params = map.new()
+    let segments = utils.segments(request.path)
 
     let web_request: WebRequest =
-      WebRequest(request: request, partial_path: request.path, params: params)
+      WebRequest(request: request, unused_path: segments, params: params)
 
     case handler(web_request, context) {
       Ok(resp) -> resp
