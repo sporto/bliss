@@ -1,3 +1,5 @@
+import gleam/list
+
 pub type Language {
   Language(code: String, name: String)
 }
@@ -19,4 +21,9 @@ pub fn countries() -> List(Country) {
     Country("au", "Australia", [City("Melbourne"), City("Sydney")]),
     Country("ar", "Argentina", [City("Buenos Aires")]),
   ]
+}
+
+pub fn cities() -> List(City) {
+  countries()
+  |> list.flat_map(fn(c) { c.cities })
 }

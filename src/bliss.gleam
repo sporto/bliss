@@ -1,9 +1,9 @@
 import bliss/dict_path_parser as dpp
+import bliss/utils
 import gleam/bit_builder.{BitBuilder}
 import gleam/http
 import gleam/http/request
 import gleam/http/response.{Response}
-import gleam/io
 import gleam/list
 import gleam/map.{Map}
 import gleam/string
@@ -103,7 +103,35 @@ fn is_wanted_method(wanted_method: http.Method, req: WebRequest) {
   }
 }
 
-pub fn match(pattern: String, wanted_method: http.Method, handler: Handler(ctx)) {
+pub fn route(
+  matcher: fn(List(String), WebRequest, ctx) -> Handler(ctx),
+) -> Handler(ctx) {
+  fn(req: WebRequest, ctx) {
+    let path = utils.segments(req.partial_path)
+    let handler = matcher(path, req, ctx)
+    handler(req, ctx)
+  }
+}
+
+pub fn if_method(wanted_method: http.Method, handler) -> Handler(ctx) {
+  fn(req: WebRequest, ctx) {
+    let is_wanted = is_wanted_method(wanted_method, req)
+    case is_wanted {
+      True -> handler(req, ctx)
+      False -> Error(Unmatched)
+    }
+  }
+}
+
+pub fn if_get(handler: Handler(ctx)) -> Handler(ctx) {
+  if_method(http.Get, handler)
+}
+
+pub fn match(
+  pattern: String,
+  wanted_method: http.Method,
+  handler: Handler(ctx),
+) -> Handler(ctx) {
   fn(req: WebRequest, ctx) {
     let path = req.partial_path
 
@@ -150,6 +178,11 @@ pub fn json_response(data: json.Json) -> Response(BitBuilder) {
   response.new(200)
   |> response.set_body(body)
   |> response.prepend_header(header_content_type, "application/json")
+}
+
+/// A handler that always responds with not found
+pub fn not_found(req, ctx) {
+  Ok(response_not_found())
 }
 
 fn response_not_found() {
