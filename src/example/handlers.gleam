@@ -96,6 +96,14 @@ pub fn city_show(id: String) {
   }
 }
 
+pub fn city_create(_req: WebRequest, _ctx: ContextAuthenticated) {
+  let body = bit_builder.from_string("Created")
+  let resp =
+    response.new(201)
+    |> response.set_body(body)
+  Ok(resp)
+}
+
 pub fn city_delete(_id: String) {
   fn(_req: WebRequest, _ctx: ContextAuthenticated) {
     let body = bit_builder.from_string("Deleted")

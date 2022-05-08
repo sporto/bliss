@@ -115,6 +115,11 @@ fn add_authorisation(req) {
   |> request.prepend_header("Authorization", "Bearer 123")
 }
 
+fn set_admin(req) {
+  req
+  |> request.prepend_header("User-Role", "admin")
+}
+
 pub fn api_not_found_test() {
   let req =
     new_req()
@@ -213,7 +218,7 @@ pub fn api_admin_can_delete_test() {
   let req =
     new_req()
     |> add_authorisation
-    |> request.prepend_header("User-Role", "admin")
+    |> set_admin
     |> request.set_path("/api/countries/au")
     |> request.set_method(http.Delete)
 
@@ -232,4 +237,77 @@ pub fn api_user_cannot_delete_test() {
   let resp = run(req)
 
   assert 401 = resp.status
+}
+
+pub fn api_cities_test() {
+  let req =
+    new_req()
+    |> add_authorisation
+    |> request.set_path("/api/cities")
+
+  let resp = run(req)
+
+  assert 200 = resp.status
+
+  let body =
+    "[{\"name\":\"Melbourne\"},{\"name\":\"Sydney\"},{\"name\":\"Buenos Aires\"}]"
+    |> bit_builder.from_string
+
+  resp.body
+  |> should.equal(body)
+}
+
+pub fn api_create_city_user_test() {
+  let req =
+    new_req()
+    |> add_authorisation
+    |> request.set_path("/api/cities")
+    |> request.set_method(http.Post)
+
+  let resp = run(req)
+
+  assert 401 = resp.status
+}
+
+pub fn api_create_city_admin_test() {
+  let req =
+    new_req()
+    |> add_authorisation
+    |> set_admin
+    |> request.set_path("/api/cities")
+    |> request.set_method(http.Post)
+
+  let resp = run(req)
+
+  assert 201 = resp.status
+}
+
+pub fn api_cities_not_found() {
+  let req =
+    new_req()
+    |> add_authorisation
+    |> request.set_path("/api/cities")
+    |> request.set_method(http.Patch)
+
+  let resp = run(req)
+
+  assert 404 = resp.status
+}
+
+pub fn api_get_city_test() {
+  let req =
+    new_req()
+    |> add_authorisation
+    |> request.set_path("/api/cities/Sydney")
+
+  let resp = run(req)
+
+  assert 200 = resp.status
+
+  let body =
+    "{\"name\":\"Sydney\"}"
+    |> bit_builder.from_string
+
+  resp.body
+  |> should.equal(body)
 }

@@ -103,7 +103,7 @@ fn is_wanted_method(wanted_method: http.Method, req: WebRequest) {
   }
 }
 
-pub fn route(
+pub fn using_pattern_matching(
   matcher: fn(List(String), WebRequest, ctx) -> Handler(ctx),
 ) -> Handler(ctx) {
   fn(req: WebRequest, ctx) {

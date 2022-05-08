@@ -3,7 +3,7 @@ import bliss/middleware
 import example/store
 import example/handlers
 import example/middlewares
-import example/context.{InitialContext}
+import example/context.{ContextAuthenticated, InitialContext}
 import gleam/bit_builder
 import gleam/http
 import gleam/http/elli
@@ -29,11 +29,20 @@ pub fn app() {
   // It is possible to match route by using pattern matching
   // on the path segments
   let city_handlers =
-    bliss.route(fn(segments, req, ctx) {
+    bliss.using_pattern_matching(fn(
+      segments: List(String),
+      req: WebRequest,
+      _ctx: ContextAuthenticated,
+    ) {
       case segments {
         [] ->
-          handlers.city_list
-          |> bliss.if_get
+          case req.request.method {
+            http.Get -> handlers.city_list
+            http.Post ->
+              handlers.city_create
+              |> middlewares.must_be_admin
+            _ -> bliss.not_found
+          }
         [id] ->
           case req.request.method {
             http.Get -> handlers.city_show(id)
