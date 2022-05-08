@@ -101,11 +101,11 @@ fn is_wanted_method(wanted_method: http.Method, req: WebRequest) {
   }
 }
 
-pub fn using_pattern_matching(
-  matcher: fn(List(String), WebRequest, ctx) -> Handler(ctx),
-) -> Handler(ctx) {
+/// Provide a function that returns a handler
+/// The returned handler by your function will be called
+pub fn use(provide: fn(WebRequest, ctx) -> Handler(ctx)) -> Handler(ctx) {
   fn(req: WebRequest, ctx) {
-    let handler = matcher(req.unused_path, req, ctx)
+    let handler = provide(req, ctx)
     handler(req, ctx)
   }
 }
@@ -180,7 +180,7 @@ pub fn json_response(data: json.Json) -> Response(BitBuilder) {
 }
 
 /// A handler that always responds with not found
-pub fn not_found(req, ctx) {
+pub fn not_found(_req, _ctx) {
   Ok(response_not_found())
 }
 
