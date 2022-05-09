@@ -103,11 +103,15 @@ fn is_wanted_method(wanted_method: http.Method, req: WebRequest) {
 
 /// Provide a function that returns a handler
 /// The returned handler by your function will be called
-pub fn use(provide: fn(WebRequest, ctx) -> Handler(ctx)) -> Handler(ctx) {
+pub fn chain(provide: fn(WebRequest, ctx) -> Handler(ctx)) -> Handler(ctx) {
   fn(req: WebRequest, ctx) {
     let handler = provide(req, ctx)
     handler(req, ctx)
   }
+}
+
+pub fn using_path(handler, unused_path) {
+  fn(req, ctx) { handler(WebRequest(..req, unused_path: unused_path), ctx) }
 }
 
 pub fn if_method(wanted_method: http.Method, handler) -> Handler(ctx) {

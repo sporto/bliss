@@ -125,19 +125,17 @@ pub fn language_list(
   Ok(bliss.json_response(data))
 }
 
-pub fn language_show(req: WebRequest, _ctx: ContextAuthenticated) -> WebResponse {
-  try code =
-    map.get(req.params, "id")
-    |> result.replace_error(bliss.NotFound)
+pub fn language_show(code: String) {
+  fn(_req: WebRequest, _ctx: ContextAuthenticated) -> WebResponse {
+    try language =
+      store.languages()
+      |> list.find(fn(lang) { lang.code == code })
+      |> result.replace_error(bliss.NotFound)
 
-  try language =
-    store.languages()
-    |> list.find(fn(lang) { lang.code == code })
-    |> result.replace_error(bliss.NotFound)
+    let data = codecs.json_of_language(language)
 
-  let data = codecs.json_of_language(language)
-
-  Ok(bliss.json_response(data))
+    Ok(bliss.json_response(data))
+  }
 }
 
 pub fn language_delete(
@@ -149,4 +147,18 @@ pub fn language_delete(
     response.new(200)
     |> response.set_body(body)
   Ok(resp)
+}
+
+pub fn language_countries(language_code: String) {
+  fn(_req, _ctx) {
+    let data =
+      store.countries()
+      |> list.filter(fn(country) {
+        list.contains(country.language_codes, language_code)
+      })
+      |> list.map(fn(country) { country.code })
+      |> json.array(of: json.string)
+
+    Ok(bliss.json_response(data))
+  }
 }

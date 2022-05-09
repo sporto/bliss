@@ -35,8 +35,6 @@ fn public_routes() {
 // These routes are scope to /api
 fn api_routes() {
   bliss.one_of([
-    bliss.get("/languages", handlers.language_list),
-    bliss.get("/languages/:id", handlers.language_show),
     bliss.get("/countries", handlers.country_list),
     bliss.get("/countries/:id", handlers.country_show),
     bliss.get("/countries/:id/cities", handlers.country_city_list),
@@ -47,6 +45,7 @@ fn api_routes() {
       |> middlewares.must_be_admin,
     ),
     bliss.scope("/cities", city_routes()),
+    bliss.scope("/languages", language_route()),
   ])
   // The middlewares at the bottom of the
   // pipeline are executed first.
@@ -61,10 +60,14 @@ fn api_routes() {
 }
 
 // It is possible to match route by using pattern matching
-// on the path segments
+// on the path segments, instead of the path parser.
+//
+// This allows to avoid using the Params dictionary as
+// you can pass the matched params directly
+//
 // These routes are scopes to /cities
 fn city_routes() {
-  bliss.use(fn(req: WebRequest, _ctx: ContextAuthenticated) {
+  bliss.chain(fn(req: WebRequest, _ctx: ContextAuthenticated) {
     case req.unused_path {
       [] ->
         case req.request.method {
@@ -82,6 +85,27 @@ fn city_routes() {
             |> middlewares.must_be_admin
           _ -> bliss.not_found
         }
+      _ -> bliss.not_found
+    }
+  })
+}
+
+fn language_route() {
+  bliss.chain(fn(req, _ctx) {
+    case req.unused_path {
+      [] -> handlers.language_list
+      [id] -> handlers.language_show(id)
+      [id, ..rest] ->
+        language_sub_route(id)
+        |> bliss.using_path(rest)
+    }
+  })
+}
+
+fn language_sub_route(language_code) {
+  bliss.chain(fn(req, _ctx) {
+    case req.unused_path {
+      ["countries"] -> handlers.language_countries(language_code)
       _ -> bliss.not_found
     }
   })

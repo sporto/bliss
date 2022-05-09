@@ -5,7 +5,12 @@ pub type Language {
 }
 
 pub type Country {
-  Country(code: String, name: String, cities: List(City))
+  Country(
+    code: String,
+    name: String,
+    cities: List(City),
+    language_codes: List(String),
+  )
 }
 
 pub type City {
@@ -18,8 +23,18 @@ pub fn languages() -> List(Language) {
 
 pub fn countries() -> List(Country) {
   [
-    Country("au", "Australia", [City("Melbourne"), City("Sydney")]),
-    Country("ar", "Argentina", [City("Buenos Aires")]),
+    Country(
+      code: "au",
+      name: "Australia",
+      cities: [City("Melbourne"), City("Sydney")],
+      language_codes: ["en"],
+    ),
+    Country(
+      code: "ar",
+      name: "Argentina",
+      cities: [City("Buenos Aires")],
+      language_codes: ["es"],
+    ),
   ]
 }
 

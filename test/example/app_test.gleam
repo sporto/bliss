@@ -1,27 +1,12 @@
 import example/app as app
-// import gleam/hackney
 import gleam/bit_string
 import gleam/bit_builder
 import gleam/json
 import gleam/http
-// import gleam/http/elli
 import gleam/http/request
 import gleam/http/response
 import gleeunit/should
 
-// pub fn server_test() {
-//   let port = 3078
-//   assert Ok(_) = elli.start(app.app(), on_port: port)
-//   let req =
-//     request.new()
-//     |> request.set_scheme(http.Http)
-//     |> request.set_host("0.0.0.0")
-//     |> request.set_port(port)
-//     |> request.set_method(http.Get)
-//     |> request.set_path("/version")
-//   assert Ok(resp) = hackney.send(req)
-//   assert 200 = resp.status
-// }
 fn new_req() {
   request.new()
   |> request.set_method(http.Get)
@@ -135,51 +120,6 @@ pub fn api_unauthorised_test() {
     |> request.set_path("/api/languages")
 
   assert 401 = run(req).status
-}
-
-pub fn api_languages_test() {
-  let req =
-    new_req()
-    |> add_authorisation
-    |> request.set_path("/api/languages")
-
-  let resp = run(req)
-
-  let body =
-    "[{\"code\":\"en\",\"name\":\"English\"},{\"code\":\"es\",\"name\":\"Spanish\"}]"
-    |> bit_builder.from_string
-
-  resp.body
-  |> should.equal(body)
-}
-
-pub fn api_language_test() {
-  let req =
-    new_req()
-    |> add_authorisation
-    |> request.set_path("/api/languages/es")
-
-  let resp = run(req)
-
-  assert 200 = resp.status
-
-  let expected_body =
-    "{\"code\":\"es\",\"name\":\"Spanish\"}"
-    |> bit_builder.from_string
-
-  resp.body
-  |> should.equal(expected_body)
-}
-
-pub fn api_language_not_found_test() {
-  let req =
-    new_req()
-    |> add_authorisation
-    |> request.set_path("/api/languages/xx")
-
-  let resp = run(req)
-
-  assert 404 = resp.status
 }
 
 pub fn api_countries_test() {
@@ -310,4 +250,67 @@ pub fn api_get_city_test() {
 
   resp.body
   |> should.equal(body)
+}
+
+pub fn api_languages_test() {
+  let req =
+    new_req()
+    |> add_authorisation
+    |> request.set_path("/api/languages")
+
+  let resp = run(req)
+
+  let body =
+    "[{\"code\":\"en\",\"name\":\"English\"},{\"code\":\"es\",\"name\":\"Spanish\"}]"
+    |> bit_builder.from_string
+
+  resp.body
+  |> should.equal(body)
+}
+
+pub fn api_language_test() {
+  let req =
+    new_req()
+    |> add_authorisation
+    |> request.set_path("/api/languages/es")
+
+  let resp = run(req)
+
+  assert 200 = resp.status
+
+  let expected_body =
+    "{\"code\":\"es\",\"name\":\"Spanish\"}"
+    |> bit_builder.from_string
+
+  resp.body
+  |> should.equal(expected_body)
+}
+
+pub fn api_language_not_found_test() {
+  let req =
+    new_req()
+    |> add_authorisation
+    |> request.set_path("/api/languages/xx")
+
+  let resp = run(req)
+
+  assert 404 = resp.status
+}
+
+pub fn api_language_countries_test() {
+  let req =
+    new_req()
+    |> add_authorisation
+    |> request.set_path("/api/languages/es/countries")
+
+  let resp = run(req)
+
+  assert 200 = resp.status
+
+  let expected_body =
+    "[\"ar\"]"
+    |> bit_builder.from_string
+
+  resp.body
+  |> should.equal(expected_body)
 }
