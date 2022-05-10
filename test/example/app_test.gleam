@@ -197,7 +197,8 @@ pub fn api_cities_test() {
   |> should.equal(body)
 }
 
-pub fn api_create_city_user_test() {
+pub fn api_create_city_as_user_test() {
+  // A user is not allowed to create
   let req =
     new_req()
     |> add_authorisation
@@ -209,7 +210,7 @@ pub fn api_create_city_user_test() {
   assert 401 = resp.status
 }
 
-pub fn api_create_city_admin_test() {
+pub fn api_create_city_as_admin_test() {
   let req =
     new_req()
     |> add_authorisation

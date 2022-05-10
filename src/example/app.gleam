@@ -1,9 +1,9 @@
-import bliss.{WebRequest}
+import bliss
 import bliss/middleware
 import example/handlers
 import example/middlewares
 import example/context.{ContextAuthenticated, InitialContext}
-import gleam/http
+import gleam/http.{Delete, Get, Post}
 import gleam/http/request
 import gleam/http/elli
 
@@ -46,8 +46,8 @@ fn api_routes(path) {
       ["countries"] -> handlers.country_list
       ["countries", id] ->
         case req.method {
-          http.Get -> handlers.country_show(id)
-          http.Delete ->
+          Get -> handlers.country_show(id)
+          Delete ->
             handlers.country_delete(id)
             |> middlewares.must_be_admin
           _ -> bliss.unmatched
@@ -56,16 +56,16 @@ fn api_routes(path) {
       // Cities
       ["cities"] ->
         case req.method {
-          http.Get -> handlers.city_list
-          http.Post ->
+          Get -> handlers.city_list
+          Post ->
             handlers.city_create
             |> middlewares.must_be_admin
           _ -> bliss.unmatched
         }
       ["cities", id] ->
         case req.method {
-          http.Get -> handlers.city_show(id)
-          http.Delete ->
+          Get -> handlers.city_show(id)
+          Delete ->
             handlers.city_delete(id)
             |> middlewares.must_be_admin
           _ -> bliss.unmatched
@@ -74,7 +74,6 @@ fn api_routes(path) {
       ["languages"] -> handlers.language_list
       ["languages", id] -> handlers.language_show(id)
       ["languages", id, "countries"] -> handlers.language_countries(id)
-
       _ -> bliss.unmatched
     }
   })
