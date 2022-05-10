@@ -24,29 +24,40 @@ pub fn app() {
 }
 
 fn public_routes() {
-  bliss.one_of([
-    bliss.get("/", handlers.public_home),
-    bliss.get("/version", handlers.public_version),
-    bliss.get("/status", handlers.public_status),
-  ])
+  bliss.chain(fn(req, _ctx) {
+    case req.unused_path {
+      [] -> handlers.public_home
+      ["version"] -> handlers.public_version
+      ["status"] -> handlers.public_status
+      _ -> bliss.unmatched
+    }
+  })
   |> middleware.cors("*")
 }
 
 // These routes are scope to /api
 fn api_routes() {
-  bliss.one_of([
-    bliss.get("/countries", handlers.country_list),
-    bliss.get("/countries/:id", handlers.country_show),
-    bliss.get("/countries/:id/cities", handlers.country_city_list),
-    // Some routes can only be used by an admin
-    bliss.delete(
-      "/countries/:id",
-      handlers.language_delete
-      |> middlewares.must_be_admin,
-    ),
-    bliss.scope("/cities", city_routes()),
-    bliss.scope("/languages", language_route()),
-  ])
+  bliss.chain(fn(req, _ctx) {
+    case req.unused_path {
+      ["countries"] -> handlers.country_list
+      ["countries", id] ->
+        case req.request.method {
+          http.Get -> handlers.country_show(id)
+          http.Delete ->
+            handlers.country_delete(id)
+            |> middlewares.must_be_admin
+          _ -> bliss.unmatched
+        }
+      ["countries", id, "cities"] -> handlers.country_city_list(id)
+      ["cities", ..rest] ->
+        city_routes()
+        |> bliss.using_path(rest)
+      ["languages", ..rest] ->
+        language_route()
+        |> bliss.using_path(rest)
+      _ -> bliss.unmatched
+    }
+  })
   // The middlewares at the bottom of the
   // pipeline are executed first.
   // Middlewares wrap the request,

@@ -128,50 +128,6 @@ pub fn if_get(handler: Handler(ctx)) -> Handler(ctx) {
   if_method(http.Get, handler)
 }
 
-pub fn match(
-  pattern: String,
-  wanted_method: http.Method,
-  handler: Handler(ctx),
-) -> Handler(ctx) {
-  fn(req: WebRequest, ctx) {
-    let path =
-      req.unused_path
-      |> string.join("/")
-
-    let call_handler = fn(params: Map(String, String)) {
-      let next_req = make_next_request(req, params, [])
-      handler(next_req, ctx)
-    }
-
-    let is_wanted = is_wanted_method(wanted_method, req)
-
-    case is_wanted {
-      True ->
-        case dpp.parse(pattern: pattern, path: path) {
-          Ok(dpp.ExactMatch(params)) -> call_handler(params)
-          _ -> Error(Unmatched)
-        }
-      False -> Error(Unmatched)
-    }
-  }
-}
-
-pub fn get(pattern: String, handler: Handler(ctx)) -> Handler(ctx) {
-  match(pattern, http.Get, handler)
-}
-
-pub fn post(pattern: String, handler: Handler(ctx)) -> Handler(ctx) {
-  match(pattern, http.Post, handler)
-}
-
-pub fn delete(pattern: String, handler: Handler(ctx)) -> Handler(ctx) {
-  match(pattern, http.Delete, handler)
-}
-
-pub fn any(pattern: String, handler: Handler(ctx)) -> Handler(ctx) {
-  match(pattern, http.Other("*"), handler)
-}
-
 pub fn json_response(data: json.Json) -> Response(BitBuilder) {
   let body =
     data
@@ -186,6 +142,10 @@ pub fn json_response(data: json.Json) -> Response(BitBuilder) {
 /// A handler that always responds with not found
 pub fn not_found(_req, _ctx) {
   Ok(response_not_found())
+}
+
+pub fn unmatched(_req, _ctx) {
+  Error(Unmatched)
 }
 
 fn response_not_found() {

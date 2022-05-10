@@ -43,37 +43,34 @@ pub fn country_list(_req: WebRequest, _ctx: ContextAuthenticated) -> WebResponse
   Ok(bliss.json_response(data))
 }
 
-pub fn country_show(req: WebRequest, _ctx: ContextAuthenticated) -> WebResponse {
-  try code =
-    map.get(req.params, "id")
-    |> result.replace_error(bliss.NotFound)
+pub fn country_show(code: String) {
+  fn(req: WebRequest, _ctx: ContextAuthenticated) -> WebResponse {
+    try code =
+      map.get(req.params, "id")
+      |> result.replace_error(bliss.NotFound)
 
-  try country =
-    store.countries()
-    |> list.find(fn(country) { country.code == code })
-    |> result.replace_error(bliss.NotFound)
+    try country =
+      store.countries()
+      |> list.find(fn(country) { country.code == code })
+      |> result.replace_error(bliss.NotFound)
 
-  let data = codecs.json_of_country(country)
+    let data = codecs.json_of_country(country)
 
-  Ok(bliss.json_response(data))
+    Ok(bliss.json_response(data))
+  }
 }
 
-pub fn country_city_list(
-  req: WebRequest,
-  _ctx: ContextAuthenticated,
-) -> WebResponse {
-  try code =
-    map.get(req.params, "id")
-    |> result.replace_error(bliss.NotFound)
+pub fn country_city_list(code: String) {
+  fn(req: WebRequest, _ctx: ContextAuthenticated) -> WebResponse {
+    try country =
+      store.countries()
+      |> list.find(fn(country) { country.code == code })
+      |> result.replace_error(bliss.NotFound)
 
-  try country =
-    store.countries()
-    |> list.find(fn(country) { country.code == code })
-    |> result.replace_error(bliss.NotFound)
+    let data = json.array(country.cities, of: codecs.json_of_city)
 
-  let data = json.array(country.cities, of: codecs.json_of_city)
-
-  Ok(bliss.json_response(data))
+    Ok(bliss.json_response(data))
+  }
 }
 
 pub fn city_list(_req: WebRequest, _ctx: ContextAuthenticated) -> WebResponse {
@@ -138,15 +135,14 @@ pub fn language_show(code: String) {
   }
 }
 
-pub fn language_delete(
-  _req: WebRequest,
-  _ctx: ContextAuthenticated,
-) -> WebResponse {
-  let body = bit_builder.from_string("Deleted")
-  let resp =
-    response.new(200)
-    |> response.set_body(body)
-  Ok(resp)
+pub fn country_delete(_id) {
+  fn(_req: WebRequest, _ctx: ContextAuthenticated) -> WebResponse {
+    let body = bit_builder.from_string("Deleted")
+    let resp =
+      response.new(200)
+      |> response.set_body(body)
+    Ok(resp)
+  }
 }
 
 pub fn language_countries(language_code: String) {
