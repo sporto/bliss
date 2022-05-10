@@ -1,4 +1,4 @@
-# bliss
+<img src="./assets/logo.svg" />
 
 [![Package Version](https://img.shields.io/hexpm/v/gleam_web)](https://hex.pm/packages/bliss)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/bliss/)
