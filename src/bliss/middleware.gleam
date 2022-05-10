@@ -26,7 +26,7 @@ fn add_cors_headers(response, origin: String) {
 pub fn cors(handler, origin: String) {
   fn(req: WebRequest, ctx) {
     //   When OPTIONS we need to respond with the CORS headers
-    let resp = case req.request.method {
+    let resp = case req.method {
       http.Options -> {
         let resp =
           response.new(202)

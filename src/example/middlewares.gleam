@@ -20,12 +20,12 @@ fn check_token(token) {
 fn try_authenticate(req: WebRequest, _ctx: InitialContext) -> Result(User, Nil) {
   // This would check using the cookie and the DB
   // But for the example just use a header
-  try token = request.get_header(req.request, "Authorization")
+  try token = request.get_header(req, "Authorization")
 
   try _ = check_token(token)
 
   let role =
-    request.get_header(req.request, "User-Role")
+    request.get_header(req, "User-Role")
     |> result.unwrap("user")
   // Get cookie from request
   // Access the DB using the url in context

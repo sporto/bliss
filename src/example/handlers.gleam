@@ -45,10 +45,6 @@ pub fn country_list(_req: WebRequest, _ctx: ContextAuthenticated) -> WebResponse
 
 pub fn country_show(code: String) {
   fn(req: WebRequest, _ctx: ContextAuthenticated) -> WebResponse {
-    try code =
-      map.get(req.params, "id")
-      |> result.replace_error(bliss.NotFound)
-
     try country =
       store.countries()
       |> list.find(fn(country) { country.code == code })

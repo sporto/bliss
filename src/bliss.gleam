@@ -14,13 +14,8 @@ pub const header_content_type = "Content-Type"
 pub type Params =
   Map(String, String)
 
-pub type WebRequest {
-  WebRequest(
-    params: Params,
-    request: request.Request(BitString),
-    unused_path: List(String),
-  )
-}
+pub type WebRequest =
+  request.Request(BitString)
 
 pub type ResponseError {
   Unmatched
@@ -58,21 +53,17 @@ pub fn one_of(handlers: List(Handler(ctx))) -> Handler(ctx) {
 fn is_wanted_method(wanted_method: http.Method, req: WebRequest) {
   case wanted_method {
     http.Other("*") -> True
-    _ -> req.request.method == wanted_method
+    _ -> req.method == wanted_method
   }
 }
 
 /// Provide a function that returns a handler
-/// The returned handler by your function will be called
-pub fn chain(provide: fn(WebRequest, ctx) -> Handler(ctx)) -> Handler(ctx) {
+/// This returned handler will be called
+pub fn use_handler(provide: fn(WebRequest, ctx) -> Handler(ctx)) -> Handler(ctx) {
   fn(req: WebRequest, ctx) {
     let handler = provide(req, ctx)
     handler(req, ctx)
   }
-}
-
-pub fn using_path(handler, unused_path) {
-  fn(req, ctx) { handler(WebRequest(..req, unused_path: unused_path), ctx) }
 }
 
 pub fn if_method(wanted_method: http.Method, handler) -> Handler(ctx) {
@@ -131,13 +122,7 @@ fn response_for_error(error: ResponseError) {
 
 pub fn service(handler: Handler(context), context context: context) {
   fn(request: request.Request(BitString)) {
-    let params = map.new()
-    let segments = utils.segments(request.path)
-
-    let web_request: WebRequest =
-      WebRequest(request: request, unused_path: segments, params: params)
-
-    case handler(web_request, context) {
+    case handler(request, context) {
       Ok(resp) -> resp
       Error(error) -> response_for_error(error)
     }

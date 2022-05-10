@@ -4,6 +4,7 @@ import example/handlers
 import example/middlewares
 import example/context.{ContextAuthenticated, InitialContext}
 import gleam/http
+import gleam/http/request
 import gleam/http/elli
 
 pub fn main() {
@@ -14,8 +15,8 @@ pub fn app() {
   // The initial context can be any custom type defined by the application
   let initial_context = InitialContext("db_url")
 
-  bliss.chain(fn(req, _cxt) {
-    case req.unused_path {
+  bliss.use_handler(fn(req, _cxt) {
+    case request.path_segments(req) {
       ["api", ..rest] -> api_routes(rest)
       rest -> public_routes(rest)
     }
@@ -26,7 +27,7 @@ pub fn app() {
 }
 
 fn public_routes(path) {
-  bliss.chain(fn(_req, _ctx) {
+  bliss.use_handler(fn(_req, _ctx) {
     case path {
       [] -> handlers.public_home
       ["version"] -> handlers.public_version
@@ -39,12 +40,12 @@ fn public_routes(path) {
 
 // These routes are scope to /api
 fn api_routes(path) {
-  bliss.chain(fn(req, _ctx) {
+  bliss.use_handler(fn(req, _ctx) {
     case path {
       // Countries
       ["countries"] -> handlers.country_list
       ["countries", id] ->
-        case req.request.method {
+        case req.method {
           http.Get -> handlers.country_show(id)
           http.Delete ->
             handlers.country_delete(id)
@@ -54,7 +55,7 @@ fn api_routes(path) {
       ["countries", id, "cities"] -> handlers.country_city_list(id)
       // Cities
       ["cities"] ->
-        case req.request.method {
+        case req.method {
           http.Get -> handlers.city_list
           http.Post ->
             handlers.city_create
@@ -62,7 +63,7 @@ fn api_routes(path) {
           _ -> bliss.unmatched
         }
       ["cities", id] ->
-        case req.request.method {
+        case req.method {
           http.Get -> handlers.city_show(id)
           http.Delete ->
             handlers.city_delete(id)
