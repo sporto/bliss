@@ -55,45 +55,6 @@ pub fn one_of(handlers: List(Handler(ctx))) -> Handler(ctx) {
   }
 }
 
-fn make_next_request(
-  request_in: WebRequest,
-  additional_params: Params,
-  unused_path: List(String),
-) -> WebRequest {
-  let next_params = map.merge(into: request_in.params, from: additional_params)
-
-  WebRequest(
-    request: request_in.request,
-    unused_path: unused_path,
-    params: next_params,
-  )
-}
-
-pub fn scope(pattern: String, handler: Handler(ctx)) -> Handler(ctx) {
-  fn(req: WebRequest, ctx) {
-    // We take the path from partial_path instead of request.path
-    // Because ancestor scopes can consume part of the path
-    // We only want to match on the left over path segments
-    let call_next_handler = fn(params: Params, left_over: List(String)) {
-      let next_req = make_next_request(req, params, left_over)
-      handler(next_req, ctx)
-    }
-
-    let path =
-      req.unused_path
-      |> string.join("/")
-
-    case dpp.parse(pattern: pattern, path: path) {
-      Ok(dpp.ExactMatch(params)) ->
-        // The whole path has been consumed by the parser
-        call_next_handler(params, [])
-      Ok(dpp.PartialMatch(params, left_over)) ->
-        call_next_handler(params, left_over)
-      Error(_) -> Error(Unmatched)
-    }
-  }
-}
-
 fn is_wanted_method(wanted_method: http.Method, req: WebRequest) {
   case wanted_method {
     http.Other("*") -> True

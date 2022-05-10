@@ -14,18 +14,20 @@ pub fn app() {
   // The initial context can be any custom type defined by the application
   let initial_context = InitialContext("db_url")
 
-  bliss.one_of([
-    bliss.scope("/", public_routes()),
-    bliss.scope("/api", api_routes()),
-  ])
+  bliss.chain(fn(req, _cxt) {
+    case req.unused_path {
+      ["api", ..rest] -> api_routes(rest)
+      rest -> public_routes(rest)
+    }
+  })
   // Add middleware to track accesss
   |> middlewares.track
   |> bliss.service(initial_context)
 }
 
-fn public_routes() {
-  bliss.chain(fn(req, _ctx) {
-    case req.unused_path {
+fn public_routes(path) {
+  bliss.chain(fn(_req, _ctx) {
+    case path {
       [] -> handlers.public_home
       ["version"] -> handlers.public_version
       ["status"] -> handlers.public_status
@@ -36,9 +38,10 @@ fn public_routes() {
 }
 
 // These routes are scope to /api
-fn api_routes() {
+fn api_routes(path) {
   bliss.chain(fn(req, _ctx) {
-    case req.unused_path {
+    case path {
+      // Countries
       ["countries"] -> handlers.country_list
       ["countries", id] ->
         case req.request.method {
@@ -49,12 +52,28 @@ fn api_routes() {
           _ -> bliss.unmatched
         }
       ["countries", id, "cities"] -> handlers.country_city_list(id)
-      ["cities", ..rest] ->
-        city_routes()
-        |> bliss.using_path(rest)
-      ["languages", ..rest] ->
-        language_route()
-        |> bliss.using_path(rest)
+      // Cities
+      ["cities"] ->
+        case req.request.method {
+          http.Get -> handlers.city_list
+          http.Post ->
+            handlers.city_create
+            |> middlewares.must_be_admin
+          _ -> bliss.unmatched
+        }
+      ["cities", id] ->
+        case req.request.method {
+          http.Get -> handlers.city_show(id)
+          http.Delete ->
+            handlers.city_delete(id)
+            |> middlewares.must_be_admin
+          _ -> bliss.unmatched
+        }
+      // Languages
+      ["languages"] -> handlers.language_list
+      ["languages", id] -> handlers.language_show(id)
+      ["languages", id, "countries"] -> handlers.language_countries(id)
+
       _ -> bliss.unmatched
     }
   })
@@ -68,56 +87,4 @@ fn api_routes() {
   |> middleware.cors("https://app.com")
   // Must be authenticated in order to access any app endpoint
   |> middlewares.authenticate
-}
-
-// It is possible to match route by using pattern matching
-// on the path segments, instead of the path parser.
-//
-// This allows to avoid using the Params dictionary as
-// you can pass the matched params directly
-//
-// These routes are scopes to /cities
-fn city_routes() {
-  bliss.chain(fn(req: WebRequest, _ctx: ContextAuthenticated) {
-    case req.unused_path {
-      [] ->
-        case req.request.method {
-          http.Get -> handlers.city_list
-          http.Post ->
-            handlers.city_create
-            |> middlewares.must_be_admin
-          _ -> bliss.not_found
-        }
-      [id] ->
-        case req.request.method {
-          http.Get -> handlers.city_show(id)
-          http.Delete ->
-            handlers.city_delete(id)
-            |> middlewares.must_be_admin
-          _ -> bliss.not_found
-        }
-      _ -> bliss.not_found
-    }
-  })
-}
-
-fn language_route() {
-  bliss.chain(fn(req, _ctx) {
-    case req.unused_path {
-      [] -> handlers.language_list
-      [id] -> handlers.language_show(id)
-      [id, ..rest] ->
-        language_sub_route(id)
-        |> bliss.using_path(rest)
-    }
-  })
-}
-
-fn language_sub_route(language_code) {
-  bliss.chain(fn(req, _ctx) {
-    case req.unused_path {
-      ["countries"] -> handlers.language_countries(language_code)
-      _ -> bliss.not_found
-    }
-  })
 }
