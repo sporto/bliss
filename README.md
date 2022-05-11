@@ -11,7 +11,7 @@ https://hexdocs.pm/bliss/
 
 ## Example
 
-See example application at src/example
+See example application at `./example`
 
 ## Installation
 
