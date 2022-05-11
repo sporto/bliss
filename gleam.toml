@@ -9,7 +9,6 @@ repository = { type = "github", user = "sporto", repo = "bliss" }
 gleam_stdlib = "~> 0.21"
 gleam_http = "~> 3.0"
 gleam_elli = "~> 1.1"
-gleam_hackney = "~> 0.2"
 gleam_json = "~> 0.4"
 
 [dev-dependencies]
