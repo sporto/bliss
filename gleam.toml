@@ -1,5 +1,5 @@
 name = "bliss"
-version = "0.1.0"
+version = "0.1.1"
 
 licences = ["MIT"]
 description = "A micro web framework for Gleam"
