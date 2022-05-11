@@ -1,8 +1,8 @@
 import bliss
 import bliss/middleware
-import example/handlers
-import example/middlewares
-import example/context.{ContextAuthenticated, InitialContext}
+import app/handlers
+import app/middlewares
+import app/context.{ContextAuthenticated, InitialContext}
 import gleam/http.{Delete, Get, Post}
 import gleam/http/request
 import gleam/http/elli

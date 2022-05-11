@@ -1,4 +1,4 @@
-import example/store
+import app/store
 import gleam/json
 
 // Serialisers

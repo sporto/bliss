@@ -1,5 +1,5 @@
 import bliss.{WebRequest, WebResponse}
-import example/context.{ContextAuthenticated, InitialContext, User}
+import app/context.{ContextAuthenticated, InitialContext, User}
 import gleam/http/request
 import gleam/result
 

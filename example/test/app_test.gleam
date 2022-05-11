@@ -1,11 +1,16 @@
-import example/app as app
+import app
 import gleam/bit_string
 import gleam/bit_builder
 import gleam/json
 import gleam/http
 import gleam/http/request
 import gleam/http/response
+import gleeunit
 import gleeunit/should
+
+pub fn main() {
+  gleeunit.main()
+}
 
 fn new_req() {
   request.new()

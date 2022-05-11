@@ -1,7 +1,7 @@
 import bliss.{WebRequest, WebResponse}
-import example/codecs
-import example/context.{ContextAuthenticated, InitialContext}
-import example/store
+import app/codecs
+import app/context.{ContextAuthenticated, InitialContext}
+import app/store
 import gleam/bit_builder
 import gleam/http/response
 import gleam/json
