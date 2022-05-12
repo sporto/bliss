@@ -167,7 +167,7 @@ fn response_for_error(error: ResponseError) {
 
 /// Create the web service
 /// Pass this to a web server
-pub fn service(handler: Handler(context), context context: context) {
+pub fn service(handler: Handler(context), context: context) {
   fn(request: request.Request(BitString)) {
     case handler(request, context) {
       Ok(resp) -> resp

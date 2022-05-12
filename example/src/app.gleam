@@ -35,7 +35,7 @@ fn public_routes(path) {
       _ -> bliss.unmatched
     }
   })
-  |> middleware.cors("*")
+  |> middleware.cors("*", False)
 }
 
 // These routes are scope to /api
@@ -84,7 +84,7 @@ fn api_routes(path) {
   // and the response in the way out.
   //
   // Handle CORS
-  |> middleware.cors("https://app.com")
+  |> middleware.cors("https://app.com", True)
   // Must be authenticated in order to access any app endpoint
   |> middlewares.authenticate
 }
